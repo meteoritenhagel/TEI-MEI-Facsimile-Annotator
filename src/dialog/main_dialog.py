@@ -8,7 +8,7 @@ from PIL import Image
 from PySide6.QtCore import Slot, Signal, QThread, QCoreApplication, Qt, QRect, QTimer
 from PySide6.QtGui import QAction, QIcon, QKeySequence
 from PySide6.QtWidgets import QMainWindow, QMessageBox, QMenuBar, QVBoxLayout, QFileDialog, QLabel, QWidget, \
-    QHBoxLayout, QPushButton, QSizePolicy
+    QHBoxLayout, QPushButton, QSizePolicy, QDockWidget
 from pyqttoast import ToastPreset
 
 from src.constants import Constants
@@ -19,6 +19,7 @@ from src.program_state import ProgramStateSingleton
 from src.settings import settings_set, Settings, settings_get, settings_revert_to_default_values
 from src.widgets.imagegraphicsview import ImageGraphicsView
 from src.widgets.widgets import ToolTipMenu, FocusableLineEdit
+from src.widgets.zone_viewer import ZoneViewer
 
 
 class ThreadWrapper(QThread):
@@ -314,7 +315,18 @@ class MainWindow(ThreadedMainWindow):
         self.buttonRedo.setText(QCoreApplication.translate("MainWindow", u"Redo", None))
         layout.addLayout(horizontalLayoutUndoRedo)
 
-
+        container = QWidget(central_widget)
+        container.setObjectName(u"container")
+        vertical_layout = QVBoxLayout(container)
+        vertical_layout.setObjectName(u"verticalLayout")
+        self.zone_viewer = ZoneViewer(central_widget)
+        vertical_layout.addWidget(self.zone_viewer)
+        dock = QDockWidget("Zone Manager:", central_widget)
+        dock.setObjectName("connectionChainsDock")
+        dock.setWidget(container)
+        dock.setFeatures(
+            QDockWidget.DockWidgetFeature.DockWidgetMovable | QDockWidget.DockWidgetFeature.DockWidgetFloatable)
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, dock)
 
         program_state = ProgramStateSingleton().program_state
 
@@ -404,19 +416,15 @@ class MainWindow(ThreadedMainWindow):
 
         def on_undo():
             LoggerSingleton().logger.log_user_interaction("buttonUndo clicked")
-
             def undo():
                 program_state.undo()
-
-            self.main_window.thread_function(undo)
+            self.thread_function(undo)
 
         def on_redo():
             LoggerSingleton().logger.log_user_interaction("buttonRedo clicked")
-
             def redo():
                 program_state.redo()
-
-            self.main_window.thread_function(redo)
+            self.thread_function(redo)
 
         self.buttonUndo.clicked.connect(on_undo)
         self.buttonRedo.clicked.connect(on_redo)
@@ -442,6 +450,7 @@ class MainWindow(ThreadedMainWindow):
                 pass
 
         program_state.data_changed.connect(update_image)
+        program_state.data_changed.connect(lambda x: self.zone_viewer.from_objects(program_state.get_current_objects()))
 
 
     def _setup_actions(self):

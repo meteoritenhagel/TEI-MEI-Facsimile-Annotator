@@ -1,4 +1,3 @@
-import copy
 from typing import Generic, TypeVar
 
 from .cyclic_access import CyclicCounter
@@ -99,7 +98,7 @@ class UndoRedoList(Generic[T]):
         # Add the new action:
         # We need to copy the element,
         # otherwise, the elements will not persist.
-        self._elements.append(copy.copy(element))
+        self._elements.append(element.copy())
 
         # discard old actions if needed
         if len(self._elements) > self._max_size:

@@ -1,3 +1,4 @@
+import copy
 import dataclasses
 import threading
 from PIL import ImageEnhance, Image
@@ -52,6 +53,9 @@ class ObjectState:
     def from_dict(cls, d):
         pass
 
+    def copy(self):
+        return ObjectState(copy.copy(self.objects), self.selection)
+
 
 class ObjectHandler:
     def __init__(self, objects_per_page: list[ObjectState] | None = None):
@@ -60,6 +64,9 @@ class ObjectHandler:
 
     def __len__(self):
         return len(self._objects_per_page)
+
+    def __iter__(self):
+        return iter(self._objects_per_page)
 
     def to_dict(self):
         # We do not need to construct everything everytime.
@@ -103,9 +110,12 @@ class ObjectHandler:
     def construct_graphics(self, index: int):
         return self._objects_per_page[index].construct_graphics()
 
-
     def append(self, state_idx: int, obj: object):
         self._objects_per_page[state_idx].append(obj)
+
+    def reset(self):
+        self._objects_per_page = []
+        self._buffered_serialization = None
 
     @property
     def has_unsaved_changes(self):
@@ -221,9 +231,6 @@ class _ProgramState(QObject):
         LoggerSingleton().logger.log_info(f"_ProgramState.reset()")
         self.path_to_image = None
 
-        # We keep the save file path
-        # self.save_file_path = None
-
         del self._currently_selected_object
         self._currently_selected_object = None
 
@@ -235,6 +242,8 @@ class _ProgramState(QObject):
 
         self._undo_redo_list.reset()
         self._undo_redo_list.add_element(ObjectState())
+
+        self._object_handler.reset()
 
     def to_dict(self) -> dict:
         """
@@ -371,8 +380,6 @@ class _ProgramState(QObject):
 
             # update object handler
             self._object_handler.set_state(self.current_page_index, previous_state)
-            # update object selection
-            self._currently_selected_object = previous_state.selection
             # update view
             self._graphics_objects = self._object_handler.construct_graphics(self.current_page_index)
             self._schedule_emit("undo")
@@ -387,8 +394,6 @@ class _ProgramState(QObject):
 
             # update object handler
             self._object_handler.set_state(self.current_page_index, next_state)
-            # update object selection
-            self._currently_selected_object = next_state.selection
             # update view
             self._graphics_objects = self._object_handler.construct_graphics(self.current_page_index)
             self._schedule_emit("redo")
@@ -396,6 +401,7 @@ class _ProgramState(QObject):
     def add_object(self, obj: object):
         self._object_handler.append(self.current_page_index, obj)
         self._graphics_objects = self._object_handler.construct_graphics(self.current_page_index)
+        self._undo_redo_list.add_element(self.get_current_state())
         self._schedule_emit("add_object")
 
     @Slot()
@@ -428,6 +434,18 @@ class _ProgramState(QObject):
         self._pending_changes.add(property_name)
         self._request_debounce.emit()
 
+    def get_current_state(self):
+        if self.current_page_index is not None:
+            return self._object_handler.get_state(self.current_page_index)
+        else:
+            return None
+
+    def get_current_objects(self):
+        if self.current_page_index is not None:
+            return self._object_handler.get_state(self.current_page_index).objects
+        else:
+            return None
+
     @property
     def has_unsaved_changes(self):
         return self._object_handler.has_unsaved_changes
@@ -451,7 +469,7 @@ class _ProgramState(QObject):
 
     @property
     def currently_selected_object(self):
-        return self._currently_selected_object
+        return self.get_current_state().selection
 
     @currently_selected_object.setter
     def currently_selected_object(self, value):
@@ -465,11 +483,11 @@ class _ProgramState(QObject):
 
     @project_images.setter
     def project_images(self, value: list[Image.Image]):
-        if self._project_images != value:
-            self._project_images = value
-            self._page_counter = CyclicCounter(len(value))
-            self._object_handler = ObjectHandler([ObjectState() for _ in range(len(value))])
-            self._schedule_emit("project_images")
+        self.reset()
+        self._project_images = value
+        self._page_counter = CyclicCounter(len(value))
+        self._object_handler = ObjectHandler([ObjectState() for _ in range(len(value))])
+        self._schedule_emit("project_images")
 
     @property
     def graphics_image(self):
