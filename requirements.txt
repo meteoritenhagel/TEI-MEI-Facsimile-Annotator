@@ -1,7 +1,0 @@
-numpy==2.5.1
-Pillow==12.3.0
-pyside6==6.11.1
-pyqt-toast-notification==1.3.3
-rtree==1.4.1
-tqdm==4.68.4
-u-msgpack-python==2.8.0
