@@ -1,5 +1,6 @@
 import copy
 import dataclasses
+import functools
 import threading
 from PIL import ImageEnhance, Image
 from PySide6.QtCore import Signal, QObject, QTimer, Slot
@@ -9,10 +10,28 @@ from pyqttoast import ToastPreset
 from .cyclic_access import CyclicCounter
 from .graphics_item import GraphicsItem, PolygonItem
 from .logger import LoggerSingleton
-from .seriazable_image import SerializableImage
+from .serializable_image import SerializableImage
 from .settings import Settings, settings_get
 from .spatial_database import SpatialDatabase
 from .undo_redo import UndoRedoList
+
+
+def log_method_call(func):
+    @functools.wraps(func)
+    def wrapper(self, *args, **kwargs):
+        message = f"{self.__class__.__name__}.{func.__name__}(...)"
+        LoggerSingleton().logger.log_info(message)
+        return func(self, *args, **kwargs)
+    return wrapper
+
+def schedule_emit(func):
+    @functools.wraps(func)
+    def wrapper(self, *args, **kwargs):
+        result = func(self, *args, **kwargs)
+        event_name = f"{func.__name__}"
+        self._schedule_emit(event_name)
+        return result
+    return wrapper
 
 
 class Rectangle:
@@ -29,6 +48,23 @@ class Rectangle:
             (self.lrx, self.lry),
             (self.ulx, self.lry),
         ]
+    
+    def serialize(self):
+        return {
+            "ulx": self.ulx,
+            "uly": self.uly,
+            "lrx": self.lrx,
+            "lry": self.lry
+        }
+
+    @classmethod
+    def deserialize(cls, data: dict):
+        return Rectangle((
+            data["ulx"],
+            data["uly"],
+            data["lrx"],
+            data["lry"]
+        ))
 
 
 class ObjectState:
@@ -46,12 +82,14 @@ class ObjectState:
             graphics.append(PolygonItem(obj.to_polygon(), QColor(0, 0, 0), filled=False))
         return graphics
 
-    def to_dict(self):
-        pass
+    def serialize(self):
+        return {
+            "objects": [obj.serialize() for obj in self.objects],
+        }
 
     @classmethod
-    def from_dict(cls, d):
-        pass
+    def deserialize(cls, data: dict):
+        return ObjectState(objects=[Rectangle.deserialize(obj) for obj in data["objects"]])
 
     def copy(self):
         return ObjectState(copy.copy(self.objects), self.selection)
@@ -68,7 +106,7 @@ class ObjectHandler:
     def __iter__(self):
         return iter(self._objects_per_page)
 
-    def to_dict(self):
+    def serialize(self):
         # We do not need to construct everything everytime.
         # If there were no changes, we can just return the buffer.
         # If the buffer is old and some object states have changed,
@@ -89,17 +127,17 @@ class ObjectHandler:
             object_state = self._objects_per_page[state_idx]
 
             if state_idx in objects_to_construct:  # construct the connector serializations that are needed
-                serialization[state_idx] = object_state.to_dict()
+                serialization[state_idx] = object_state.serialize()
             else:  # for pages that have not changed, take the buffer
                 serialization[state_idx] = self._buffered_serialization[state_idx]
 
         self._buffered_serialization = serialization  # update the buffer
         return serialization
 
-    def from_dict(self, l: list[dict]):
+    def deserialize(self, l: list[dict]):
         self._objects_per_page = []
         for entry in l:
-            self._objects_per_page.append(ObjectState.from_dict(entry))
+            self._objects_per_page.append(ObjectState.deserialize(entry))
 
     def get_state(self, state_idx: int):
         return self._objects_per_page[state_idx]
@@ -163,8 +201,8 @@ class _ProgramState(QObject):
 
     Methods:
         reset: Resets all member variables to None and frees the memory.
-        to_dict: Returns a dictionary of the most important features for saving.
-        from_dict: Resets the _ProgramState class with the values loaded from a save file dictionary.
+        serialize: Returns a dictionary of the most important features for saving.
+        deserialize: Resets the _ProgramState class with the values loaded from a save file dictionary.
         construct_view: Updates the graphics for the currently selected page for display.
                                          Call from separate thread!
         has_undo_actions: Return True if there are actions that can be undone.
@@ -202,15 +240,14 @@ class _ProgramState(QObject):
         self._debounce_timer.timeout.connect(self._emit_data_changed)
         self._pending_changes = set()
 
-        self.path_to_image: str | None = None
+        self.path_to_images: list[str] | None = None
         self.save_file_path: str | None = None
 
         self._project_images: list[Image.Image] | None = None
 
         self._page_counter: CyclicCounter | None = None
 
-        self._currently_selected_object: object | None = None
-        self._graphics_image: SerializableImage | None = None
+        self._graphics_image: Image.Image | None = None
         self._graphics_objects: list[GraphicsItem] | None = None
         self._spatial_database: SpatialDatabase | None = None
 
@@ -220,204 +257,24 @@ class _ProgramState(QObject):
 
     def __repr__(self):
         return (f"ProgramState(\n"
-                f"   Path to Project Image: {self.path_to_image}\n"
+                f"   Path to Project Images: {self.path_to_images}\n"
                 f")"
                 )
 
-    def reset(self):
-        """
-        Resets all member variables to None and frees the memory.
-        """
-        LoggerSingleton().logger.log_info(f"_ProgramState.reset()")
-        self.path_to_image = None
-
-        del self._currently_selected_object
-        self._currently_selected_object = None
-
-        del self._graphics_image
-        self._graphics_image = None
-
-        del self._graphics_objects
-        self._graphics_objects = None
-
-        self._undo_redo_list.reset()
-        self._undo_redo_list.add_element(ObjectState())
-
-        self._object_handler.reset()
-
-    def to_dict(self) -> dict:
-        """
-        Returns a dictionary of the most important features for saving.
-        :return: Dictionary of the most important _ProgramState features.
-        """
-        LoggerSingleton().logger.log_info(f"_ProgramState.to_dict(...)")
-
-        return {
-            "image": self.graphics_image.to_bytestring(),
-            "objects": self._object_handler.to_dict(),
-        }
-
-    def from_dict(self, dictionary: dict):
-        """
-        Resets the _ProgramState class with the values loaded from a save file dictionary.
-        """
-        LoggerSingleton().logger.log_info(f"_ProgramState.from_dict(...)")
-        self.reset()
-
-        self._graphics_image = SerializableImage.from_bytestring(dictionary["image"])
-        self._object_handler.from_dict(
-            dictionary["objects"],
-        )
-
-        self._currently_selected_object = None
-        self._undo_redo_list.reset()
-        self._undo_redo_list.add_element(
-            self._object_handler.get_state(self.current_page_index)
-        )
-        self._schedule_emit("from_save_file")
-
-    def go_to_next_page(self):
-        """
-        Sets the page counter object to the next page. Call from separate thread!
-        """
-        LoggerSingleton().logger.log_info(f"_ProgramState.go_to_next_page()")
-        self._page_counter.next_index()
-        self.construct_view()
-        self._undo_redo_list.reset()
-        self._undo_redo_list.add_element(
-            self._object_handler.get_state(self.current_page_index)
-        )
-        self._schedule_emit("go_to_next_page")
-
-    def go_to_previous_page(self):
-        """
-        Sets the page counter object to the previous page. Call from separate thread!
-        """
-        LoggerSingleton().logger.log_info(f"_ProgramState.go_to_previous_page()")
-        self._page_counter.previous_index()
-        self.construct_view()
-        self._undo_redo_list.reset()
-        self._undo_redo_list.add_element(
-            self._object_handler.get_state(self.current_page_index)
-        )
-        self._schedule_emit("go_to_previous_page")
-
-    def go_to_page(self, page_idx: int):
-        """
-        Sets the page counter object to the page of index page_idx. Call from separate thread!
-        :param page_idx: Page index to which the page counter should be set.
-        """
-        LoggerSingleton().logger.log_info(f"_ProgramState.go_to_page(page_idx={page_idx})")
-        self._page_counter.go_to_index(page_idx)
-        self.construct_view()
-        self._undo_redo_list.reset()
-        self._undo_redo_list.add_element(
-            self._object_handler.get_state(self.current_page_index)
-        )
-        self._schedule_emit("go_to_page")
-
-    def construct_view(self):
-        """
-        Updates the graphics for the currently selected page for display. Call from separate thread!
-        """
-        LoggerSingleton().logger.log_info(f"_ProgramState.construct_view()")
-
-        # brightness
-        enhancer = ImageEnhance.Brightness(
-            self.project_images[self.current_page_index]
-        )
-        self._graphics_image = enhancer.enhance(settings_get(Settings.IMAGE_BRIGHTNESS))
-
-        # contrast
-        enhancer = ImageEnhance.Contrast(
-            self._graphics_image
-        )
-        self._graphics_image = enhancer.enhance(settings_get(Settings.IMAGE_CONTRAST))
-
-        # brightness
-        enhancer = ImageEnhance.Color(
-            self._graphics_image
-        )
-        self._graphics_image = enhancer.enhance(settings_get(Settings.IMAGE_SATURATION))
-
-        self._graphics_objects = self._object_handler.construct_graphics(self.current_page_index)
-        self._currently_selected_object = None
-
-        self._schedule_emit("construct_view")
-
-    def page_index_is_valid(self, page_idx: int) -> bool:
-        """
-        Check if the given page index is valid.
-        :param page_idx: Page index to check.
-        :return: True if the page index is valid.
-        """
-        LoggerSingleton().logger.log_info(f"_ProgramState.page_index_is_valid(page_idx={page_idx})")
-        return self._page_counter.index_is_valid(page_idx)
-
-    def has_undo_actions(self):
-        """
-        Return True if there are actions that can be undone.
-        :return: True if there are actions that can be undone.
-        """
-        LoggerSingleton().logger.log_info(f"_ProgramState.has_undo_actions()")
-        return self._undo_redo_list.has_elements_before()
-
-    def has_redo_actions(self):
-        """
-        Return True if there are actions that can be redone.
-        :return: True if there are actions that can be redone.
-        """
-        LoggerSingleton().logger.log_info(f"_ProgramState.has_redo_actions()")
-        return self._undo_redo_list.has_elements_after()
-
-    def undo(self):
-        """
-        If possible, undo the last action.
-        """
-        LoggerSingleton().logger.log_info(f"_ProgramState.undo()")
-        if self._undo_redo_list.has_elements_before():
-            previous_state = self._undo_redo_list.previous_element()
-
-            # update object handler
-            self._object_handler.set_state(self.current_page_index, previous_state)
-            # update view
-            self._graphics_objects = self._object_handler.construct_graphics(self.current_page_index)
-            self._schedule_emit("undo")
-
-    def redo(self):
-        """
-        If possible, redo the last action.
-        """
-        LoggerSingleton().logger.log_info(f"_ProgramState.redo()")
-        if self._undo_redo_list.has_elements_after():
-            next_state = self._undo_redo_list.next_element()
-
-            # update object handler
-            self._object_handler.set_state(self.current_page_index, next_state)
-            # update view
-            self._graphics_objects = self._object_handler.construct_graphics(self.current_page_index)
-            self._schedule_emit("redo")
-
-    def add_object(self, obj: object):
-        self._object_handler.append(self.current_page_index, obj)
-        self._graphics_objects = self._object_handler.construct_graphics(self.current_page_index)
-        self._undo_redo_list.add_element(self.get_current_state())
-        self._schedule_emit("add_object")
-
     @Slot()
+    @log_method_call
     def _start_debounce_timer(self):
         """
         Starts the debounce timer (on timeout, the signal data_changed may be emitted).
         """
-        LoggerSingleton().logger.log_info(f"_ProgramState._start_debounce_timer()")
         self._debounce_timer.start(100)  # 100 ms debounce interval
 
     @Slot()
+    @log_method_call
     def _emit_data_changed(self):
         """
         If pending changes are present, the data_changed signal is emitted with a summary of changes.
         """
-        LoggerSingleton().logger.log_info(f"_ProgramState._emit_data_changed()")
         LoggerSingleton().logger.log_info(f"Emitting _ProgramState.data_changed signal {self._pending_changes}")
         if self._pending_changes:
             # Emit the signal with a summary of changes
@@ -434,12 +291,193 @@ class _ProgramState(QObject):
         self._pending_changes.add(property_name)
         self._request_debounce.emit()
 
+    @log_method_call
+    def reset(self):
+        """
+        Resets all member variables to None and frees the memory.
+        """
+        self.path_to_images = None
+
+        del self._graphics_image
+        self._graphics_image = None
+
+        del self._graphics_objects
+        self._graphics_objects = None
+
+        self._undo_redo_list.reset()
+        self._undo_redo_list.add_element(ObjectState())
+
+        self._object_handler.reset()
+
+    @log_method_call
+    def serialize(self) -> dict:
+        """
+        Returns a dictionary of the most important features for saving.
+        :return: Dictionary of the most important _ProgramState features.
+        """
+        return {
+            "project_images": [SerializableImage(img).to_bytestring() for img in self.project_images],
+            "image_paths": self.path_to_images,
+            "objects": self._object_handler.serialize(),
+            "current_page_index": self.current_page_index
+        }
+
+    @log_method_call
+    @schedule_emit
+    def deserialize(self, dictionary: dict):
+        """
+        Resets the _ProgramState class with the values loaded from a save file dictionary.
+        """
+        self.reset()
+
+        self._project_images = [SerializableImage.from_bytestring(img).image for img in dictionary["project_images"]]
+        self.path_to_images = dictionary["image_paths"]
+        self._object_handler.deserialize(
+            dictionary["objects"],
+        )
+        self._page_counter = CyclicCounter(len(self.project_images))
+        self._page_counter._current_index = dictionary["current_page_index"]
+
+        self._undo_redo_list.reset()
+        self._undo_redo_list.add_element(
+            self._object_handler.get_state(self.current_page_index)
+        )
+
+    @log_method_call
+    @schedule_emit
+    def go_to_next_page(self):
+        """
+        Sets the page counter object to the next page. Call from separate thread!
+        """
+        self._page_counter.next_index()
+        self.construct_view()
+        self._undo_redo_list.reset()
+        self._undo_redo_list.add_element(
+            self._object_handler.get_state(self.current_page_index)
+        )
+
+    @log_method_call
+    @schedule_emit
+    def go_to_previous_page(self):
+        """
+        Sets the page counter object to the previous page. Call from separate thread!
+        """
+        self._page_counter.previous_index()
+        self.construct_view()
+        self._undo_redo_list.reset()
+        self._undo_redo_list.add_element(
+            self._object_handler.get_state(self.current_page_index)
+        )
+
+    @log_method_call
+    @schedule_emit
+    def go_to_page(self, page_idx: int):
+        """
+        Sets the page counter object to the page of index page_idx. Call from separate thread!
+        :param page_idx: Page index to which the page counter should be set.
+        """
+        self._page_counter.go_to_index(page_idx)
+        self.construct_view()
+        self._undo_redo_list.reset()
+        self._undo_redo_list.add_element(
+            self._object_handler.get_state(self.current_page_index)
+        )
+
+    @log_method_call
+    @schedule_emit
+    def construct_view(self):
+        """
+        Updates the graphics for the currently selected page for display. Call from separate thread!
+        """
+        # brightness
+        enhancer = ImageEnhance.Brightness(
+            self.project_images[self.current_page_index]
+        )
+        graphics_image = enhancer.enhance(settings_get(Settings.IMAGE_BRIGHTNESS))
+
+        # contrast
+        enhancer = ImageEnhance.Contrast(
+            graphics_image
+        )
+        graphics_image = enhancer.enhance(settings_get(Settings.IMAGE_CONTRAST))
+
+        # brightness
+        enhancer = ImageEnhance.Color(
+            graphics_image
+        )
+        graphics_image = enhancer.enhance(settings_get(Settings.IMAGE_SATURATION))
+        self._graphics_image = graphics_image
+
+        self._graphics_objects = self._object_handler.construct_graphics(self.current_page_index)
+
+    def page_index_is_valid(self, page_idx: int) -> bool:
+        """
+        Check if the given page index is valid.
+        :param page_idx: Page index to check.
+        :return: True if the page index is valid.
+        """
+        LoggerSingleton().logger.log_info(f"_ProgramState.page_index_is_valid(page_idx={page_idx})")
+        return self._page_counter.index_is_valid(page_idx)
+
+    @log_method_call
+    def has_undo_actions(self):
+        """
+        Return True if there are actions that can be undone.
+        :return: True if there are actions that can be undone.
+        """
+        return self._undo_redo_list.has_elements_before()
+
+    @log_method_call
+    def has_redo_actions(self):
+        """
+        Return True if there are actions that can be redone.
+        :return: True if there are actions that can be redone.
+        """
+        return self._undo_redo_list.has_elements_after()
+
+    @log_method_call
+    def undo(self):
+        """
+        If possible, undo the last action.
+        """
+        if self._undo_redo_list.has_elements_before():
+            previous_state = self._undo_redo_list.previous_element()
+
+            # update object handler
+            self._object_handler.set_state(self.current_page_index, previous_state)
+            # update view
+            self._graphics_objects = self._object_handler.construct_graphics(self.current_page_index)
+            self._schedule_emit("undo")
+
+    @log_method_call
+    def redo(self):
+        """
+        If possible, redo the last action.
+        """
+        if self._undo_redo_list.has_elements_after():
+            next_state = self._undo_redo_list.next_element()
+
+            # update object handler
+            self._object_handler.set_state(self.current_page_index, next_state)
+            # update view
+            self._graphics_objects = self._object_handler.construct_graphics(self.current_page_index)
+            self._schedule_emit("redo")
+
+    @log_method_call
+    @schedule_emit
+    def add_object(self, obj: object):
+        self._object_handler.append(self.current_page_index, obj)
+        self._graphics_objects = self._object_handler.construct_graphics(self.current_page_index)
+        self._undo_redo_list.add_element(self.get_current_state())
+
+    @log_method_call
     def get_current_state(self):
         if self.current_page_index is not None:
             return self._object_handler.get_state(self.current_page_index)
         else:
             return None
 
+    @log_method_call
     def get_current_objects(self):
         if self.current_page_index is not None:
             return self._object_handler.get_state(self.current_page_index).objects
@@ -473,8 +511,8 @@ class _ProgramState(QObject):
 
     @currently_selected_object.setter
     def currently_selected_object(self, value):
-        if self._currently_selected_object != value:
-            self._currently_selected_object = value
+        if self.currently_selected_object != value:
+            self.get_current_state().selection = value
             self._schedule_emit(f"currently_selected_object ({value})")
 
     @property
@@ -490,11 +528,11 @@ class _ProgramState(QObject):
         self._schedule_emit("project_images")
 
     @property
-    def graphics_image(self):
+    def graphics_image(self) -> Image.Image:
         return self._graphics_image
 
     @graphics_image.setter
-    def graphics_image(self, value):
+    def graphics_image(self, value: Image.Image):
         if self._graphics_image != value:
             self._graphics_image = value
             self._schedule_emit("graphics_image")

@@ -6,7 +6,7 @@ from src.program_state import Rectangle
 
 class ZoneViewer(QTreeView):
     """
-    Class ZoneViewer endows a QTreeView with zone handling capabitities.
+    Class ZoneViewer endows a QTreeView with zone handling capabilities.
     """
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -27,4 +27,3 @@ class ZoneViewer(QTreeView):
                 coordinates = f"{int(zone.ulx)}, {int(zone.uly)}, {int(zone.lrx)}, {int(zone.lry)}"
                 coordinates_item = QStandardItem(coordinates)
                 self.model.appendRow([zone_item, coordinates_item])
-

@@ -15,32 +15,47 @@ class Setting:
         key (str): The key under which the setting is stored.
         type (builtins.type): The type of the setting.
         default_value (object): The default value of the setting.
-        in_menu (bool): Whether the setting should be displayed in the settings dialog.
+        menu_name (str | None): Name of the menu tab the setting should appear in.
+        display_name (str | None): The name under which the setting should be displayed.
     """
-    def __init__(self, key: str, type: builtins.type, default_value: object = None, in_menu: bool = False):
+    def __init__(
+            self,
+            key: str, t: builtins.type, default_value: object = None, menu_name: str = None, display_name: str = None
+    ):
         self.key: str = key
-        self.type: builtins.type = type
+        self.type: builtins.type = t
         self.default_value: object = default_value
-        self.in_menu: bool = in_menu
+        self.menu_name: str | None = menu_name
+        self.display_name: str = display_name if display_name is not None else key
 
 
 class Settings(Setting, Enum):
     """
     Enum for application settings keys.
     """
-    GEOMETRY = ("geometry", QByteArray, False)               # Main window geometry (QByteArray)
-    WINDOW_STATE = ("windowState", QByteArray, False)        # Main window state (QByteArray)
+    GEOMETRY = ("geometry", QByteArray)          # Main window geometry (QByteArray)
+    WINDOW_STATE = ("windowState", QByteArray)   # Main window state (QByteArray)
 
-    DEBUG_ENABLED = ("debugEnabled", bool, False)            # True if detailed debug logging is activated (bool)
-
-    ### Image Options ###
-    IMAGE_BRIGHTNESS = ("imageBrightness", float, 1.)        # Displayed image brightness, value between 0 and 2
-    IMAGE_CONTRAST = ("imageContrast", float, 1.)            # Displayed image contrast, value between 0 and 2
-    IMAGE_SATURATION = ("imageSaturation", float, 1.)        # Displayed image saturation, value between 0 and 2
+    ### Image Options ###                        # Displayed image brightness, value between 0 and 2
+    IMAGE_BRIGHTNESS = (
+        "imageBrightness", float, 1., "Image", "Image Brightness"
+    )
+    IMAGE_CONTRAST = (                          # Displayed image contrast, value between 0 and 2
+        "imageContrast", float, 1., "Image", "Image Contrast"
+    )
+    IMAGE_SATURATION = (                        # Displayed image saturation, value between 0 and 2
+        "imageSaturation", float, 1., "Image", "Image Saturation"
+    )
 
     ### Colors and Display Options ###
-    BOUNDING_BOX_COLOR =(
-        ("boundingBoxColor", QColor, QColor(0, 114, 178)))   # Bounding box color (QColor)
+    BOUNDING_BOX_COLOR = (                      # Bounding box color (QColor)
+        "boundingBoxColor", QColor, QColor(0, 114, 178), "Color", "Bounding Box Color"
+    )
+
+    ### Advanced Options ###
+    DEBUG_ENABLED = (                           # True if detailed debug logging is activated (bool)
+        "debugEnabled", bool, False, "Advanced", "Enable debug logging"
+    )
 
 
 def _get_settings() -> QSettings:
@@ -60,7 +75,7 @@ def settings_set(setting: Settings, value: object) -> None:
     :param setting: Setting to modify.
     :param value: Settings value to set.
     """
-    if isinstance(value, QColor):
+    if issubclass(setting.type, QColor):
         value = value.name(QColor.NameFormat.HexArgb)
     _get_settings().setValue(setting.key, value)
 

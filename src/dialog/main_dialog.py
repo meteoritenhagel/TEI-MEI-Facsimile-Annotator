@@ -17,6 +17,8 @@ from src.dialog.dialog_save_on_exit import DialogSaveOnExit
 from src.logger import LoggerSingleton
 from src.program_state import ProgramStateSingleton
 from src.settings import settings_set, Settings, settings_get, settings_revert_to_default_values
+from src.widgets.content_viewer import ContentViewer
+from src.widgets.facsimile_viewer import FacsimileViewer
 from src.widgets.imagegraphicsview import ImageGraphicsView
 from src.widgets.widgets import ToolTipMenu, FocusableLineEdit
 from src.widgets.zone_viewer import ZoneViewer
@@ -265,14 +267,12 @@ class MainWindow(ThreadedMainWindow):
         """
         Set up the UI widgets.
         """
-        label = QLabel("abc")
         layout = QVBoxLayout()
         central_widget = QWidget()
         central_widget.setLayout(layout)
         self.setCentralWidget(central_widget)
 
         self.imageGraphicsView = ImageGraphicsView(self)
-        layout.addWidget(label)
         layout.addWidget(self.imageGraphicsView)
 
         pagechange_layout = QHBoxLayout()
@@ -319,14 +319,39 @@ class MainWindow(ThreadedMainWindow):
         container.setObjectName(u"container")
         vertical_layout = QVBoxLayout(container)
         vertical_layout.setObjectName(u"verticalLayout")
+        zone_label = QLabel("Zone Manager")
+        vertical_layout.addWidget(zone_label)
         self.zone_viewer = ZoneViewer(central_widget)
         vertical_layout.addWidget(self.zone_viewer)
-        dock = QDockWidget("Zone Manager:", central_widget)
+        facsimile_label = QLabel("Facsimile View")
+        vertical_layout.addWidget(facsimile_label)
+        self.facsimile_viewer = FacsimileViewer(central_widget)
+        vertical_layout.addWidget(self.facsimile_viewer)
+        pblb_label = QLabel("Page/Line Break View")
+        vertical_layout.addWidget(pblb_label)
+        self.content_viewer = ContentViewer(central_widget)
+        vertical_layout.addWidget(self.content_viewer)
+        dock = QDockWidget("", central_widget)
         dock.setObjectName("connectionChainsDock")
         dock.setWidget(container)
         dock.setFeatures(
             QDockWidget.DockWidgetFeature.DockWidgetMovable | QDockWidget.DockWidgetFeature.DockWidgetFloatable)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, dock)
+
+
+    def _setup_actions(self):
+        # connect buttons to actions
+        self.actionNewProject.triggered.connect(self._new_project)
+        self.actionNewProject.setShortcut(QKeySequence("Ctrl+N"))
+
+        self.actionOpenProject.triggered.connect(self._open_project)
+        self.actionOpenProject.setShortcut(QKeySequence("Ctrl+O"))
+
+        self.actionSaveProject.triggered.connect(self._save_project)
+        self.actionSaveProject.setShortcut(QKeySequence("Ctrl+S"))
+
+        self.actionSaveAsProject.triggered.connect(self._save_as_project)
+        self.actionSaveAsProject.setShortcut(QKeySequence("Ctrl+Shift+S"))
 
         program_state = ProgramStateSingleton().program_state
 
@@ -416,14 +441,18 @@ class MainWindow(ThreadedMainWindow):
 
         def on_undo():
             LoggerSingleton().logger.log_user_interaction("buttonUndo clicked")
+
             def undo():
                 program_state.undo()
+
             self.thread_function(undo)
 
         def on_redo():
             LoggerSingleton().logger.log_user_interaction("buttonRedo clicked")
+
             def redo():
                 program_state.redo()
+
             self.thread_function(redo)
 
         self.buttonUndo.clicked.connect(on_undo)
@@ -450,22 +479,9 @@ class MainWindow(ThreadedMainWindow):
                 pass
 
         program_state.data_changed.connect(update_image)
-        program_state.data_changed.connect(lambda x: self.zone_viewer.from_objects(program_state.get_current_objects()))
-
-
-    def _setup_actions(self):
-        # connect buttons to actions
-        self.actionNewProject.triggered.connect(self._new_project)
-        self.actionNewProject.setShortcut(QKeySequence("Ctrl+N"))
-
-        self.actionOpenProject.triggered.connect(self._open_project)
-        self.actionOpenProject.setShortcut(QKeySequence("Ctrl+O"))
-
-        self.actionSaveProject.triggered.connect(self._save_project)
-        self.actionSaveProject.setShortcut(QKeySequence("Ctrl+S"))
-
-        self.actionSaveAsProject.triggered.connect(self._save_as_project)
-        self.actionSaveAsProject.setShortcut(QKeySequence("Ctrl+Shift+S"))
+        program_state.data_changed.connect(lambda: self.zone_viewer.from_objects(program_state.get_current_objects()))
+        program_state.data_changed.connect(lambda: self.facsimile_viewer.from_state(program_state.object_handler))
+        program_state.data_changed.connect(lambda: self.content_viewer.from_state(program_state.object_handler))
 
     def keyPressEvent(self, event):
         """
@@ -503,8 +519,6 @@ class MainWindow(ThreadedMainWindow):
         )
 
         if image_paths:
-            program_state.path_to_images = image_paths
-
             loading_window_content = LoadingDialogContent()
 
             def on_new():
@@ -512,6 +526,7 @@ class MainWindow(ThreadedMainWindow):
                 loading_window_content.progress_bar_visible = True
 
                 program_state.project_images = [Image.open(image_path) for image_path in image_paths]
+                program_state.path_to_images = image_paths
                 loading_window_content.callback_tqdm.close()
 
                 loading_window_content.progress_bar_visible = False
@@ -535,7 +550,7 @@ class MainWindow(ThreadedMainWindow):
         load_path, _ = QFileDialog.getOpenFileName(
             self,
             caption="Open Project File",
-            filter=f"Project File (*.{Constants.PROJECT_FILE_EXTENSION});;All Files (*.*)"
+            filter=f"Project File (*.{Constants.PROJECT_FILE_EXTENSION.value});;All Files (*.*)"
         )
         LoggerSingleton().logger.log_info(f"User selected model path {load_path}")
         if load_path is not None and load_path != "":
@@ -568,9 +583,8 @@ class MainWindow(ThreadedMainWindow):
                     return
 
                 loading_window_content.action_text = "Loading file contents into program state"
-                loading_window_content.progress_bar_visible = True
                 try:
-                    program_state.from_dict(loaded_unserialized, tqdm_progress=loading_window_content.callback_tqdm)
+                    program_state.deserialize(loaded_unserialized)
                 except Exception as e:
                     LoggerSingleton().logger.log_exception(e)
                     self.show_error_dialog.emit("Error",
@@ -630,7 +644,7 @@ class MainWindow(ThreadedMainWindow):
         default_filename = program_state.save_file_path
         if default_filename is None:
             default_filename = os.path.join(
-                os.path.dirname(program_state.path_to_mets), f"project.{Constants.PROJECT_FILE_EXTENSION}"
+                os.path.dirname(program_state.path_to_images[0]), f"project.{Constants.PROJECT_FILE_EXTENSION.value}"
             )
 
         # get path of where the file should be saved
@@ -638,7 +652,7 @@ class MainWindow(ThreadedMainWindow):
             self,
             caption="Save Project File",
             dir=default_filename,
-            filter=f"Project File (*.{Constants.PROJECT_FILE_EXTENSION});;All Files (*.*)"
+            filter=f"Project File (*.{Constants.PROJECT_FILE_EXTENSION.value});;All Files (*.*)"
         )
         self._save_project_to_path(save_path, exit_after=exit_after)
 
@@ -651,8 +665,8 @@ class MainWindow(ThreadedMainWindow):
                                           f"exit_after={exit_after})")
         program_state = ProgramStateSingleton().program_state
         if save_path is not None and save_path != "":
-            if save_path.split(".")[-1] != Constants.PROJECT_FILE_EXTENSION:
-                save_path += f".{Constants.PROJECT_FILE_EXTENSION}"
+            if save_path.split(".")[-1] != Constants.PROJECT_FILE_EXTENSION.value:
+                save_path += f".{Constants.PROJECT_FILE_EXTENSION.value}"
             program_state.save_file_path = save_path
             loading_window_content = LoadingDialogContent()
 
@@ -660,7 +674,7 @@ class MainWindow(ThreadedMainWindow):
                 loading_window_content.status_text = "Please wait..."
                 loading_window_content.action_text = "Constructing save file"
                 loading_window_content.progress_bar_visible = True
-                save_file = program_state.to_dict(tqdm_progress=loading_window_content.callback_tqdm)
+                save_file = program_state.serialize()
                 loading_window_content.callback_tqdm.close()
                 loading_window_content.progress_bar_visible = False
 

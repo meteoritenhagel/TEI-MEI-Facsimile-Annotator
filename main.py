@@ -37,8 +37,6 @@ def start_gui():
         # Redirect Qt stderr output to the logger
         qInstallMessageHandler(qt_message_handler)
 
-        settings_set(Settings.DEBUG_ENABLED, False)  # DEBUG
-
         #icon = QIcon()
         #icon.addFile("./gui_files/icon.png")
         #app.setWindowIcon(icon)
