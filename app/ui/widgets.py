@@ -3,6 +3,8 @@ from PySide6.QtGui import QColor
 from PySide6.QtWidgets import QLineEdit, QWidget, QLabel, QMenu, QToolTip, QColorDialog, QSlider, QVBoxLayout, \
     QPushButton, QHBoxLayout
 
+from app.models.settings import int_range, float_range
+
 
 class FocusableLineEdit(QLineEdit):
     """
@@ -130,7 +132,7 @@ class FloatSlider(QSlider):
         setValue (float): Override. Sets the slider's current value.
         setTickInverval (float): Override. Sets the slider's tick interval.
     """
-    def __init__(self, resolution=100, *args, **kwargs):
+    def __init__(self, *args, resolution=100, **kwargs):
         super().__init__(*args, **kwargs)
         self._resolution = resolution
 
@@ -191,6 +193,9 @@ class ColorButton(QWidget):
     color's hex value. When clicking the button, a QColorDialog is opened and the color value
     held by the widget can be changed by the user.
 
+    Signal:
+        colorChanged: Signal emitted when the color button is and a color was set.
+
     Methods:
         color: Returns the currently selected color.
         set_color (QColor): Sets the color the widget holds.
@@ -200,26 +205,30 @@ class ColorButton(QWidget):
         _update_style: Updates the button color and the color label text.
     """
 
-    def __init__(self, label, initial_color=QColor(255, 255, 255), *args, **kwargs):
+    colorChanged = Signal()
+
+    def __init__(self, label, initial_color=QColor(255, 255, 255), show_alpha=True, *args, **kwargs):
         """
         Initializes the ColorButton instance.
 
         :param label: Label that is displayed in the QColorDialog: f"Pick color for {label}"
         :param initial_color: Initial color value.
+        :param show_alpha: If True, enable alpha change and display in HexArgb format.
         """
         super().__init__(*args, **kwargs)
 
         self._label = label
         self._color = initial_color
+        self._show_alpha = show_alpha
 
-        self._button = QPushButton(self, *args, **kwargs)
+        self.button = QPushButton(self, *args, **kwargs)
         self._color_label = QLabel(self)
         self._update_style()
-        self._button.clicked.connect(self.choose_color)
+        self.button.clicked.connect(self.choose_color)
 
         # Layouts
         main_layout = QHBoxLayout()
-        main_layout.addWidget(self._button)
+        main_layout.addWidget(self.button)
         main_layout.addWidget(self._color_label)
 
         self.setLayout(main_layout)
@@ -243,16 +252,23 @@ class ColorButton(QWidget):
         """
         Opens a dialog that lets the user choose the color the widget holds.
         """
-        color = QColorDialog.getColor(self._color, self, f"Pick color for {self._label}")
+        kwargs = {"options": QColorDialog.ColorDialogOption.ShowAlphaChannel} if self._show_alpha else {}
+        color = QColorDialog.getColor(
+            self._color,
+            self,
+            f"Pick color for {self._label}",
+            **kwargs,
+        )
         if color.isValid():
             self.set_color(color)
+            self.colorChanged.emit()
 
     def _update_style(self):
         """
         Updates the button color and the color label text.
         """
-        color_name = self._color.name(QColor.NameFormat.HexRgb)
-        self._button.setStyleSheet(f"background-color: {color_name};")
+        color_name = f"{self._color.name(QColor.NameFormat.HexArgb if self._show_alpha else QColor.NameFormat.HexRgb)}"
+        self.button.setStyleSheet(f"background-color: {color_name};")
         self._color_label.setText(color_name)
 
 
@@ -260,6 +276,9 @@ class LabeledSlider(QWidget):
     """
     LabeledSlider bundles a QSlider (or FloatSlider) together with labels indicating
     its minimum, maximum, and current values.
+
+    Signals:
+        valueChanged: Emitted when the slider value is changed.
 
     Methods:
         minimum: Returns the slider's minimum value.
@@ -277,18 +296,25 @@ class LabeledSlider(QWidget):
         _update_labels: Updates the labels for minimum, maximum, and current values.
 
     """
-    def __init__(self, is_float=False, *args, **kwargs):
+
+    valueChanged = Signal()
+
+    def __init__(self, data_type: type = int_range, *args, **kwargs):
         """
         Initializes the LabeledSlider instance.
 
-        :param is_float: If True, a FloatSlider instance is used, otherwise a QSlider instance.
+        :param data_type: Either int_range or float_range.
         """
         super().__init__(*args, **kwargs)
 
-        if is_float:
-            self._slider = FloatSlider(Qt.Orientation.Horizontal, *args, **kwargs)
+        self.data_type = data_type
+
+        if issubclass(data_type, float_range):
+            self.slider = FloatSlider(Qt.Orientation.Horizontal, *args, **kwargs)
+        elif issubclass(data_type, int_range):
+            self.slider = QSlider(Qt.Orientation.Horizontal, *args, **kwargs)
         else:
-            self._slider = QSlider(Qt.Orientation.Horizontal, *args, **kwargs)
+            raise NotImplementedError(f"Data type {data_type} is not supported, needs to be int_range or float_range.")
 
         # Labels
         self._label_min = QLabel()
@@ -299,7 +325,7 @@ class LabeledSlider(QWidget):
         # Layouts
         slider_layout = QHBoxLayout()
         slider_layout.addWidget(self._label_min)
-        slider_layout.addWidget(self._slider)
+        slider_layout.addWidget(self.slider)
         slider_layout.addWidget(self._label_max)
 
         main_layout = QVBoxLayout()
@@ -309,7 +335,7 @@ class LabeledSlider(QWidget):
         self.setLayout(main_layout)
 
         # Connect signals
-        self._slider.valueChanged.connect(self._update_labels)
+        self.slider.valueChanged.connect(lambda: [self._update_labels(), self.valueChanged.emit()])
 
         # Initialize labels
         self._update_labels()
@@ -319,14 +345,14 @@ class LabeledSlider(QWidget):
         Returns the slider's minimum value.
         :return: The slider's minimum value.
         """
-        return self._slider.minimum()
+        return self.slider.minimum()
 
     def setMinimum(self, minimum: int | float):
         """
         Sets the slider's minimum value.
         :param minimum: New minimum value.
         """
-        self._slider.setMinimum(minimum)
+        self.slider.setMinimum(minimum)
         self._update_labels()
 
     def maximum(self) -> int | float:
@@ -334,29 +360,29 @@ class LabeledSlider(QWidget):
         Returns the slider's maximum value.
         :return: The slider's maximum value.
         """
-        return self._slider.maximum()
+        return self.slider.maximum()
 
     def setMaximum(self, maximum: int | float):
         """
         Sets the slider's maximum value.
         :param maximum: New maximum value.
         """
-        self._slider.setMaximum(maximum)
+        self.slider.setMaximum(maximum)
         self._update_labels()
 
-    def value(self) -> int | float:
+    def value(self) -> int_range | float_range:
         """
         Returns the slider's current value.
         :return: The slider's current value.
         """
-        return self._slider.value()
+        return self.data_type(self.slider.value())
 
-    def setValue(self, value: int | float):
+    def setValue(self, value: int_range | float_range):
         """
         Sets the slider's current value.
         :param value: New current value.
         """
-        self._slider.setValue(value)
+        self.slider.setValue(value)
         self._update_labels()
 
     def tickInterval(self) -> int | float:
@@ -364,33 +390,33 @@ class LabeledSlider(QWidget):
         Returns the slider's tick interval.
         :return: The slider's tick interval.
         """
-        return self._slider.tickInterval()
+        return self.slider.tickInterval()
 
     def setTickInterval(self, tick_interval: int | float):
         """
         Sets the slider's tick interval.
         :param tick_interval: New tick interval.
         """
-        self._slider.setTickInterval(tick_interval)
+        self.slider.setTickInterval(tick_interval)
 
     def tickPosition(self) -> QSlider.TickPosition:
         """
         Returns the slider's tick position.
         :return: The slider's tick position.
         """
-        return self._slider.tickPosition()
+        return self.slider.tickPosition()
 
     def setTickPosition(self, tick_position: QSlider.TickPosition):
         """
         Sets the slider's tick position.
         :param tick_position: New tick position.
         """
-        self._slider.setTickPosition(tick_position)
+        self.slider.setTickPosition(tick_position)
 
     def _update_labels(self):
         """
         Updates the labels for minimum, maximum, and current values.
         """
-        self._label_min.setText(f"{self._slider.minimum()}")
-        self._label_max.setText(f"{self._slider.maximum()}")
-        self._label_value.setText(f"{self._slider.value()}")
+        self._label_min.setText(f"{self.slider.minimum()}")
+        self._label_max.setText(f"{self.slider.maximum()}")
+        self._label_value.setText(f"{self.slider.value()}")

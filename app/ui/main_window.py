@@ -26,6 +26,7 @@ from app.constants import APPLICATION_NAME, DOCUMENT_FILE_EXTENSION
 from app.services.document_service import DocumentService
 from app.services.settings_service import SettingsService
 from app.services.xml_id_service import XmlIdService
+from app.ui.dialog_change_settings import DialogChangeSettings
 from app.ui.facsimile_canvas import FacsimileCanvas
 from app.ui.widgets import FocusableLineEdit
 from app.viewmodels.document_viewmodel import DocumentViewModel
@@ -102,6 +103,7 @@ class MainWindow(QMainWindow):
         self._restore_window_settings()
 
     def _build_menu(self) -> None:
+        # --- File Menu ---
         file_menu = self.menuBar().addMenu("File")
         action_new = file_menu.addAction("New", self._new_document)
         action_new.setIcon(QIcon.fromTheme(QIcon.ThemeIcon.DocumentNew))
@@ -121,6 +123,12 @@ class MainWindow(QMainWindow):
         action_save_as = file_menu.addAction("Save As...", self._save_document_as)
         action_save_as.setIcon(QIcon.fromTheme(QIcon.ThemeIcon.DocumentSaveAs))
         action_save_as.setShortcut("Ctrl+Shift+S")
+
+        # --- Edit Menu ---
+        edit_menu = self.menuBar().addMenu("Edit")
+
+        action_settings = edit_menu.addAction("Settings...", self._open_settings_dialog)
+        action_settings.setIcon(QIcon.fromTheme(QIcon.ThemeIcon.DocumentProperties))
 
     def _build_toolbar(self) -> None:
         toolbar = QToolBar("Document", self)
@@ -485,6 +493,10 @@ class MainWindow(QMainWindow):
             self.restoreGeometry(geometry)
         if window_state is not None:
             self.restoreState(window_state)
+
+    def _open_settings_dialog(self):
+        dialog_change_settings = DialogChangeSettings(self._settings_service)
+        dialog_change_settings.exec()
 
     def closeEvent(self, event: QEvent) -> None:
         """

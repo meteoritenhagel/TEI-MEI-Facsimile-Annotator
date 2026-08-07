@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import copy
 import dataclasses
 import typing
 
@@ -13,6 +12,25 @@ from app.viewmodels.settings_viewmodel import SettingsViewModel
 
 
 class SettingsService(QObject):
+    # TODO: Add new settings here
+    SETTINGS_KEYS: list[str] = [
+        "geometry",
+        "windowState",
+        "image_brightness",
+        "image_contrast",
+        "image_saturation",
+        "canvas_background_color",
+        "create_zone_border_thickness",
+        "create_zone_border_color",
+        "create_zone_fill_color",
+        "unselected_zone_border_thickness",
+        "unselected_zone_border_color",
+        "unselected_zone_fill_color",
+        "selected_zone_border_thickness",
+        "selected_zone_border_color",
+        "selected_zone_fill_color",
+    ]
+
     def __init__(
         self,
         repository: SettingsRepository,
@@ -42,48 +60,23 @@ class SettingsService(QObject):
         self.settings_defaults = settings_defaults
 
     def create_temporary_settings_viewmodel(self) -> SettingsViewModel:
-        return copy.deepcopy(self._settings_vm)
+        return self._settings_vm.copy()
 
     def apply_temporary_settings_viewmodel(self, temporary_settings_viewmodel: SettingsViewModel) -> None:
-        self._settings_vm.geometry = temporary_settings_viewmodel.geometry
-        ...
+        for key in self.SETTINGS_KEYS:
+            setattr(self._settings_vm, key, getattr(temporary_settings_viewmodel, key))
 
     def load_settings(self) -> None:
-        self._load_settings_to_viewmodel(self._settings_vm, load_default_values=False)
+        self.load_settings_to_viewmodel(self._settings_vm, load_default_values=False)
 
     def save_settings(self) -> None:
-        self._save_setting("geometry", self._settings_vm.geometry)
-        self._save_setting("windowState", self._settings_vm.windowState)
-        self._save_setting("image_brightness", self._settings_vm.image_brightness)
-        self._save_setting("image_contrast", self._settings_vm.image_contrast)
-        self._save_setting("image_saturation", self._settings_vm.image_saturation)
-        self._save_setting("canvas_background_color", self._settings_vm.canvas_background_color)
-        self._save_setting("create_zone_border_thickness", self._settings_vm.create_zone_border_thickness)
-        self._save_setting("create_zone_border_color", self._settings_vm.create_zone_border_color)
-        self._save_setting("create_zone_fill_color", self._settings_vm.create_zone_fill_color)
-        self._save_setting("unselected_zone_border_thickness", self._settings_vm.unselected_zone_border_thickness)
-        self._save_setting("unselected_zone_border_color", self._settings_vm.unselected_zone_border_color)
-        self._save_setting("unselected_zone_fill_color", self._settings_vm.unselected_zone_fill_color)
-        self._save_setting("selected_zone_border_thickness", self._settings_vm.selected_zone_border_thickness)
-        self._save_setting("selected_zone_border_color", self._settings_vm.selected_zone_border_color)
-        self._save_setting("selected_zone_fill_color", self._settings_vm.selected_zone_fill_color)
+        for key in self.SETTINGS_KEYS:
+            self._save_setting(key, getattr(self._settings_vm, key))
 
-    def _load_settings_to_viewmodel(self, settings_vm: SettingsViewModel, load_default_values: bool = False) -> None:
-        settings_vm.geometry = self._load_setting("geometry", load_default_values)
-        settings_vm.windowState = self._load_setting("windowState", load_default_values)
-        settings_vm.image_brightness = self._load_setting("image_brightness", load_default_values)
-        settings_vm.image_contrast = self._load_setting("image_contrast", load_default_values)
-        settings_vm.image_saturation = self._load_setting("image_saturation", load_default_values)
-        settings_vm.canvas_background_color = self._load_setting("canvas_background_color", load_default_values)
-        settings_vm.create_zone_border_thickness = self._load_setting("create_zone_border_thickness", load_default_values)
-        settings_vm.create_zone_border_color = self._load_setting("create_zone_border_color", load_default_values)
-        settings_vm.create_zone_fill_color = self._load_setting("create_zone_fill_color", load_default_values)
-        settings_vm.unselected_zone_border_thickness = self._load_setting("unselected_zone_border_thickness", load_default_values)
-        settings_vm.unselected_zone_border_color = self._load_setting("unselected_zone_border_color", load_default_values)
-        settings_vm.unselected_zone_fill_color = self._load_setting("unselected_zone_fill_color", load_default_values)
-        settings_vm.selected_zone_border_thickness = self._load_setting("selected_zone_border_thickness", load_default_values)
-        settings_vm.selected_zone_border_color = self._load_setting("selected_zone_border_color", load_default_values)
-        settings_vm.selected_zone_fill_color = self._load_setting("selected_zone_fill_color", load_default_values)
+    def load_settings_to_viewmodel(self, settings_vm: SettingsViewModel, load_default_values: bool = False) -> None:
+        for key in self.SETTINGS_KEYS:
+            value = self._load_setting(key, load_default_values)
+            setattr(settings_vm, key, value)
 
     def _load_setting(self, settings_key: str, load_default_values: bool = False) -> object:
         setting_type = self.settings_types[settings_key]

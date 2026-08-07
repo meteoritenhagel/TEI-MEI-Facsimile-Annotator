@@ -85,6 +85,9 @@ class FacsimileCanvas(QGraphicsView):
         self._document_vm.selected_zone_index_changed.connect(self._refresh_selection)
         self.rebuild_for_current_page()
 
+        self._settings_vm.image_settings_changed.connect(self.rebuild_for_current_page)
+        self._settings_vm.display_settings_changed.connect(self.rebuild_for_current_page)
+
     def rebuild_for_current_page(self) -> None:
         self._disconnect_surface()
         self._scene.clear()

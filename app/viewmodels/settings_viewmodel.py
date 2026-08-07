@@ -54,6 +54,40 @@ class SettingsViewModel(QObject):
         self._selected_zone_border_color = selected_zone_border_color
         self._selected_zone_fill_color = selected_zone_fill_color
 
+    def copy(self) -> SettingsViewModel:
+        def copy_color(c):
+            return QColor(c) if c is not None else None
+
+        def copy_qbytearray(qb):
+            return QByteArray(qb.data()) if qb is not None else None
+
+        def copy_int_range(val):
+            return type(val)(val) if val is not None else None
+
+        def copy_float_range(val):
+            return type(val)(val) if val is not None else None
+
+        return SettingsViewModel(
+            geometry=copy_qbytearray(self.geometry),
+            windowState=copy_qbytearray(self.windowState),
+
+            image_brightness=copy_float_range(self.image_brightness),
+            image_contrast=copy_float_range(self.image_contrast),
+            image_saturation=copy_float_range(self.image_saturation),
+
+            canvas_background_color=copy_color(self.canvas_background_color),
+            create_zone_border_thickness=copy_float_range(self.create_zone_border_thickness),
+            create_zone_border_color=copy_color(self.create_zone_border_color),
+            create_zone_fill_color=copy_color(self.create_zone_fill_color),
+            unselected_zone_border_thickness=copy_float_range(self.unselected_zone_border_thickness),
+            unselected_zone_border_color=copy_color(self.unselected_zone_border_color),
+            unselected_zone_fill_color=copy_color(self.unselected_zone_fill_color),
+            selected_zone_border_thickness=copy_float_range(self.selected_zone_border_thickness),
+            selected_zone_border_color=copy_color(self.selected_zone_border_color),
+            selected_zone_fill_color=copy_color(self.selected_zone_fill_color),
+            parent=None
+        )
+
     # --- Geometry ---
     @property
     def geometry(self) -> QByteArray:
