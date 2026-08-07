@@ -19,7 +19,7 @@ class DocumentViewModel(QObject):
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
         self._surfaces: tuple[SurfaceViewModel, ...] = ()
-        self._document_type: DocumentType = "MEI"
+        self._document_type: DocumentType = "TEI"
         self._current_page_index = 0
         self._file_path: Path | None = None
         self._dirty = False

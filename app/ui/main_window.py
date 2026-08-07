@@ -24,9 +24,11 @@ from PySide6.QtWidgets import (
 
 from app.constants import APPLICATION_NAME, DOCUMENT_FILE_EXTENSION
 from app.services.document_service import DocumentService
+from app.services.settings_service import SettingsService
 from app.services.xml_id_service import XmlIdService
 from app.ui.facsimile_canvas import FacsimileCanvas
 from app.viewmodels.document_viewmodel import DocumentViewModel
+from app.viewmodels.settings_viewmodel import SettingsViewModel
 from app.viewmodels.surface_viewmodel import SurfaceViewModel
 from app.viewmodels.zone_viewmodel import ZoneViewModel
 
@@ -61,19 +63,23 @@ class MainWindow(QMainWindow):
     def __init__(
         self,
         document_vm: DocumentViewModel,
+        settings_vm: SettingsViewModel,
         document_service: DocumentService,
+        settings_service: SettingsService,
         xml_id_service: XmlIdService,
         parent=None,
     ) -> None:
         super().__init__(parent)
         self._document_vm = document_vm
+        self._settings_vm = settings_vm
         self._document_service = document_service
+        self._settings_service = settings_service
         self._xml_id_service = xml_id_service
         self._current_surface: SurfaceViewModel | None = None
         self._zone_connections: list[ZoneViewModel] = []
         self._editing_spinboxes = False
 
-        self._canvas = FacsimileCanvas(document_vm, document_service, self)
+        self._canvas = FacsimileCanvas(document_vm, settings_vm, document_service, self)
         self._zone_table = QTableWidget(0, 5, self)
         self._zone_table.setHorizontalHeaderLabels(["xml:id", "ulx", "uly", "lrx", "lry"])
         self._zone_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
@@ -118,6 +124,8 @@ class MainWindow(QMainWindow):
         self._connect_document_signals()
         self._refresh_all()
 
+        self._restore_window_settings()
+
     def _build_menu(self) -> None:
         file_menu = self.menuBar().addMenu("File")
         action_new = file_menu.addAction("New", self._new_document)
@@ -142,6 +150,7 @@ class MainWindow(QMainWindow):
     def _build_toolbar(self) -> None:
         toolbar = QToolBar("Document", self)
         toolbar.setMovable(False)
+        toolbar.setObjectName("toolbar")
         self.addToolBar(toolbar)
         toolbar.addWidget(QLabel("Type: ", self))
         toolbar.addWidget(self._document_type_combo)
@@ -488,3 +497,29 @@ class MainWindow(QMainWindow):
         message = f"Failed to add page: {error}"
         self._status_label.setText(message)
         QMessageBox.warning(self, "Add Page Failed", message)
+
+    def _save_window_settings(self):
+        self._settings_vm.geometry = self.saveGeometry()
+        self._settings_vm.windowState = self.saveState()
+
+    def _restore_window_settings(self):
+        geometry = self._settings_vm.geometry
+        window_state = self._settings_vm.windowState
+
+        if geometry is not None:
+            self.restoreGeometry(geometry)
+        if window_state is not None:
+            self.restoreState(window_state)
+
+    def closeEvent(self, event: QEvent) -> None:
+        """
+        Handles the window close event. Saves settings before closing.
+        """
+        self._save_window_settings()
+        try:
+            self._settings_service.save_settings()
+        except Exception as e:
+            # Optionally show a warning or log the error
+            QMessageBox.warning(self, "Save Settings Failed", f"Failed to save settings: {e}")
+        # Accept the event to proceed with closing
+        event.accept()

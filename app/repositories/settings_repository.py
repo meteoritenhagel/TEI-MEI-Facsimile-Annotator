@@ -1,48 +1,22 @@
 from __future__ import annotations
 
-from dataclasses import asdict
-from pathlib import Path
-from typing import Any
+from PySide6.QtCore import QSettings, QByteArray
 
-import msgpack
-
-from app.models.document import Document, DocumentType, Surface, Zone
+from app.constants import ORGANIZATION_NAME, APPLICATION_NAME
 
 
-class DocumentRepository:
-    def load(self, path: Path) -> Document:
-        data = msgpack.unpackb(path.read_bytes(), raw=False)
-        surfaces = tuple(self._surface_from_dict(item) for item in data["surfaces"])
-        return Document(
-            surfaces=surfaces,
-            document_type=self._document_type(data["document_type"]),
-            current_page_index=int(data["current_page_index"]),
-        )
+class SettingsRepository:
+    _q_settings: QSettings = QSettings(ORGANIZATION_NAME, APPLICATION_NAME)
 
-    def save(self, path: Path, doc: Document) -> None:
-        payload = asdict(doc)
-        packed = msgpack.packb(payload, use_bin_type=True)
-        tmp_path = path.with_name(f"{path.name}.tmp")
-        tmp_path.write_bytes(packed)
-        tmp_path.replace(path)
+    def load(self, key: str) -> object:
+        try:
+            return self._q_settings.value(key)
+        except EOFError:
+            return None
 
-    def _surface_from_dict(self, data: dict[str, Any]) -> Surface:
-        zones = tuple(
-            Zone(
-                ulx=float(zone["ulx"]),
-                uly=float(zone["uly"]),
-                lrx=float(zone["lrx"]),
-                lry=float(zone["lry"]),
-            )
-            for zone in data["zones"]
-        )
-        return Surface(
-            image=bytes(data["image"]),
-            image_path=str(data["image_path"]),
-            zones=zones,
-        )
-
-    def _document_type(self, value: object) -> DocumentType:
-        if value not in ("TEI", "MEI"):
-            raise ValueError(f"Unsupported document type: {value!r}")
-        return value
+    def save(self, key: str, value: QByteArray | str | float | int) -> None:
+        # Only these basic types are serialized correctly!
+        if isinstance(value, QByteArray) or isinstance(value, str) or isinstance(value, float) or isinstance(value, int):
+            self._q_settings.setValue(key, value)
+        else:
+            raise TypeError(f"Value must be QByteArray, str, float, or int. Received: {value} ({type(value)})")

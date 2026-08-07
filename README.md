@@ -1,8 +1,35 @@
 # TEI/MEI Facsimile Annotator
 
-Initial PySide6 desktop scaffold for annotating facsimile page images with rectangular zones. Documents are saved as a single `.fca` file containing msgpack-encoded nested document, surface, and zone data.
+Annotating facsimile page images with rectangular zones for TEI/MEI export. Documents are saved as a single
+`.fca` file containing msgpack-encoded nested document, surface, and zone data.
 
-## Architecture
+## Install Dependencies
+
+```bash
+pip install -e .
+```
+
+## Run
+
+```bash
+python -m app.main
+```
+
+## Developer Information
+
+### Install Dependencies (Including Dev Dependencies)
+
+```bash
+pip install -e .[dev]
+```
+
+### Test
+
+```bash
+pytest
+```
+
+### Architecture
 
 The app uses MVVM adapted for Qt Widgets, with service and repository layers:
 
@@ -10,15 +37,21 @@ The app uses MVVM adapted for Qt Widgets, with service and repository layers:
 Widgets -> Services -> ViewModels -> Qt signals -> Widgets
 ```
 
-Widgets never mutate viewmodels directly. They call service methods in response to user actions, then update from viewmodel or service signals. Services are the only layer that writes observable state.
+Widgets never mutate viewmodels directly. They call service methods in response to user actions, then update from
+viewmodel or service signals. Services are the only layer that writes observable state.
 
-Models in `app/models/document.py` are frozen dataclasses for persisted content only: `Document`, `Surface`, and `Zone`. They have no Qt imports and no derived fields.
+Models in `app/models/document.py` are frozen dataclasses for persisted content only: `Document`, `Surface`, and `Zone`.
+They have no Qt imports and no derived fields.
 
-Viewmodels in `app/viewmodels/` represent the whole observable application state, including transient UI state such as `selected_zone_index`, `dirty`, and `file_path`. Viewmodels never store model instances as fields; they contain other viewmodels (`DocumentViewModel` -> `SurfaceViewModel` -> `ZoneViewModel`).
+Viewmodels in `app/viewmodels/` represent the whole observable application state, including transient UI state such as
+`selected_zone_index`, `dirty`, and `file_path`. Viewmodels never store model instances as fields; they contain other
+viewmodels (`DocumentViewModel` -> `SurfaceViewModel` -> `ZoneViewModel`).
 
-Model/viewmodel conversion lives in `app/services/mapping_service.py` and is called only by services. Mapping functions touch only persistable fields. Transient viewmodel fields, including `selected_zone_index`, are not persisted and are not modified by mapping.
+Model/viewmodel conversion lives in `app/services/mapping_service.py` and is called only by services. Mapping functions
+touch only persistable fields. Transient viewmodel fields, including `selected_zone_index`, are not persisted and are
+not modified by mapping.
 
-## Signal Scope
+### Signal Scope
 
 Signals fire at the narrowest scope that changed:
 
@@ -28,22 +61,12 @@ Signals fire at the narrowest scope that changed:
 
 This keeps the UI from rebuilding unrelated page and zone objects when only one nested item changed.
 
-## Persistence
+### Persistence
 
-`DocumentRepository` is stateless. It loads and saves explicit paths only, and it does not drive UI state. Saves are atomic: data is packed with `msgpack`, written to a sibling `.tmp` file, then replaced into place.
+`DocumentRepository` is stateless. It loads and saves explicit paths only, and it does not drive UI state. Saves are
+atomic: data is packed with `msgpack`, written to a sibling `.tmp` file, then replaced into place.
 
-## XML IDs
+### XML IDs
 
-`xml:id` values are never stored in the model, viewmodel, or `.fca` file. They are derived on demand by `XmlIdService` from current positions, such as `facs_1` and `facs_3_zone_2`. The same service will back future TEI/MEI export logic.
-
-## Run
-
-```bash
-python -m app.main
-```
-
-## Test
-
-```bash
-pytest
-```
+`xml:id` values are never stored in the model, viewmodel, or `.fca` file. They are derived on demand by `XmlIdService`
+from current positions, such as `facs_1` and `facs_3_zone_2`. The same service will back future TEI/MEI export logic.

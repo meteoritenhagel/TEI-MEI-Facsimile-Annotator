@@ -6,7 +6,6 @@ from pathlib import Path
 from PySide6.QtCore import QEvent, QPointF, QRectF, Qt
 from PySide6.QtGui import (
     QBrush,
-    QColor,
     QDragEnterEvent,
     QDropEvent,
     QKeyEvent,
@@ -26,7 +25,9 @@ from PySide6.QtWidgets import (
 
 from app.models.document import Zone
 from app.services.document_service import DocumentService
+from app.services.settings_service import SettingsService
 from app.viewmodels.document_viewmodel import DocumentViewModel
+from app.viewmodels.settings_viewmodel import SettingsViewModel
 from app.viewmodels.surface_viewmodel import SurfaceViewModel
 from app.viewmodels.zone_viewmodel import ZoneViewModel
 
@@ -48,11 +49,13 @@ class FacsimileCanvas(QGraphicsView):
     def __init__(
         self,
         document_vm: DocumentViewModel,
+        settings_vm: SettingsViewModel,
         document_service: DocumentService,
         parent=None,
     ) -> None:
         super().__init__(parent)
         self._document_vm = document_vm
+        self._settings_vm = settings_vm
         self._document_service = document_service
         self._scene = QGraphicsScene(self)
         self._pixmap_item: QGraphicsPixmapItem | None = None
@@ -66,7 +69,7 @@ class FacsimileCanvas(QGraphicsView):
 
         self.setScene(self._scene)
         self.setRenderHint(QPainter.RenderHint.Antialiasing)
-        self.setBackgroundBrush(QBrush(QColor("#e6e6e6")))
+        self.setBackgroundBrush(QBrush(self._settings_vm.canvas_background_color))
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
         self.setResizeAnchor(QGraphicsView.ViewportAnchor.AnchorViewCenter)
@@ -178,7 +181,7 @@ class FacsimileCanvas(QGraphicsView):
             zone_vm.lrx - zone_vm.ulx,
             zone_vm.lry - zone_vm.uly,
             self._pen_for_zone(index),
-            QBrush(QColor(255, 224, 102, 40)),
+            QBrush(self._settings_vm.unselected_zone_fill_color),
         )
         item.setZValue(10)
         item.setData(0, index)
@@ -203,12 +206,16 @@ class FacsimileCanvas(QGraphicsView):
         for index, item in self._zone_items.items():
             item.setPen(self._pen_for_zone(index))
             selected = index == self._document_vm.selected_zone_index
-            item.setBrush(QBrush(QColor(255, 224, 102, 85 if selected else 40)))
+            item.setBrush(QBrush(
+                self._settings_vm.selected_zone_fill_color if selected else self._settings_vm.unselected_zone_fill_color
+            ))
 
     def _pen_for_zone(self, index: int) -> QPen:
         selected = index == self._document_vm.selected_zone_index
-        pen = QPen(QColor("#0b63ce") if selected else QColor("#d24d1f"))
-        pen.setWidthF(3.0 if selected else 1.5)
+        pen = QPen(
+            self._settings_vm.selected_zone_border_color if selected else self._settings_vm.unselected_zone_border_color
+        )
+        pen.setWidthF(self._settings_vm.selected_zone_border_thickness if selected else self._settings_vm.unselected_zone_border_thickness)
         return pen
 
     def resizeEvent(self, event) -> None:
@@ -345,8 +352,8 @@ class FacsimileCanvas(QGraphicsView):
             scene_pos.y(),
             0,
             0,
-            QPen(QColor("#247a42"), 1.5, Qt.PenStyle.DashLine),
-            QBrush(QColor(84, 180, 100, 35)),
+            QPen(self._settings_vm.create_zone_border_color, self._settings_vm.create_zone_border_thickness, Qt.PenStyle.DashLine),
+            QBrush(self._settings_vm.create_zone_fill_color),
         )
         self._draft_rect_item.setZValue(20)
 
