@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
     QWidget, QLineEdit,
 )
 
+from app.constants import APPLICATION_NAME, DOCUMENT_FILE_EXTENSION
 from app.services.document_service import DocumentService
 from app.services.xml_id_service import XmlIdService
 from app.ui.facsimile_canvas import FacsimileCanvas
@@ -262,7 +263,7 @@ class MainWindow(QMainWindow):
             self,
             "Open Document",
             "",
-            "Facsimile Annotation (*.fca);;Legacy Msgpack (*.msgpack *.mpack);;All Files (*)",
+            f"Facsimile Annotation (*.{DOCUMENT_FILE_EXTENSION});;Legacy Msgpack (*.msgpack *.mpack);;All Files (*)",
         )
         if not filename:
             return
@@ -281,13 +282,13 @@ class MainWindow(QMainWindow):
             self,
             "Save Document",
             "",
-            "Facsimile Annotation (*.fca);;All Files (*)",
+            f"Facsimile Annotation (*.{DOCUMENT_FILE_EXTENSION});;All Files (*)",
         )
         if not filename:
             return
         path = Path(filename)
         if path.suffix == "":
-            path = path.with_suffix(".fca")
+            path = path.with_suffix(f".{DOCUMENT_FILE_EXTENSION}")
         self._status_label.setText("Saving...")
         self._document_service.save_file_as(path)
 
@@ -471,7 +472,7 @@ class MainWindow(QMainWindow):
     def _update_window_title(self, *_args) -> None:
         name = self._document_vm.file_path.name if self._document_vm.file_path else "Untitled"
         dirty = " *" if self._document_vm.dirty else ""
-        self.setWindowTitle(f"TEI/MEI Facsimile Annotator - {name}{dirty}")
+        self.setWindowTitle(f"{APPLICATION_NAME} - {name}{dirty}")
 
     def _save_failed(self, error: object) -> None:
         message = f"Failed to save: {error}"
