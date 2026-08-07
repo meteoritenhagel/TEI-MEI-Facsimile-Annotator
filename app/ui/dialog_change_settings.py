@@ -32,6 +32,73 @@ class DialogChangeSettings(QDialog):
         _restore_default: Loads the default application settings and applies them to the widgets.
     """
 
+    # TODO: Here, register settings that should be accessible in the dialog!
+    # The settings must be available as properties in the SettingsViewModel.
+    SETTINGS_BY_TAB = [
+        {
+            "title": "Image",
+            "settings": [
+                {
+                    "label": "Brightness",
+                    "property": "image_brightness",
+                },
+                {
+                    "label": "Contrast",
+                    "property": "image_contrast",
+                },
+                {
+                    "label": "Saturation",
+                    "property": "image_saturation",
+                }
+            ]
+        },
+        {
+            "title": "Display",
+            "settings": [
+                {
+                    "label": "Canvas Background Color",
+                    "property": "canvas_background_color",
+                },
+                {
+                    "label": "Create Zone Border Thickness",
+                    "property": "create_zone_border_thickness",
+                },
+                {
+                    "label": "Create Zone Border Color",
+                    "property": "create_zone_border_color",
+                },
+                {
+                    "label": "Create Zone Fill Color",
+                    "property": "create_zone_fill_color",
+                },
+                {
+                    "label": "Unselected Zone Border Thickness",
+                    "property": "unselected_zone_border_thickness",
+                },
+                {
+                    "label": "Unselected Zone Border Color",
+                    "property": "unselected_zone_border_color",
+                },
+                {
+                    "label": "Unselected Zone Fill Color",
+                    "property": "unselected_zone_fill_color",
+                },
+                {
+                    "label": "Selected Zone Border Thickness",
+                    "property": "selected_zone_border_thickness",
+                },
+                {
+                    "label": "Selected Zone Border Color",
+                    "property": "selected_zone_border_color",
+                },
+                {
+                    "label": "Selected Zone Fill Color",
+                    "property": "selected_zone_fill_color",
+                },
+            ]
+        }
+    ]
+
     def __init__(self, settings_service: SettingsService):
         """
         Initialize the class instance.
@@ -42,73 +109,6 @@ class DialogChangeSettings(QDialog):
 
         self._settings_service = settings_service
         self._temporary_settings = settings_service.create_temporary_settings_viewmodel()
-
-        # TODO: Here, register settings that should be accessible in the dialog!
-        # The settings must be available as properties in the SettingsViewModel.
-        self._settings_by_tab = [
-            {
-                "title": "Image",
-                "settings": [
-                    {
-                        "label": "Brightness",
-                        "property": "image_brightness",
-                    },
-                    {
-                        "label": "Contrast",
-                        "property": "image_contrast",
-                    },
-                    {
-                        "label": "Saturation",
-                        "property": "image_saturation",
-                    }
-                ]
-            },
-            {
-                "title": "Display",
-                "settings": [
-                    {
-                        "label": "Canvas Background Color",
-                        "property": "canvas_background_color",
-                    },
-                    {
-                        "label": "Create Zone Border Thickness",
-                        "property": "create_zone_border_thickness",
-                    },
-                    {
-                        "label": "Create Zone Border Color",
-                        "property": "create_zone_border_color",
-                    },
-                    {
-                        "label": "Create Zone Fill Color",
-                        "property": "create_zone_fill_color",
-                    },
-                    {
-                        "label": "Unselected Zone Border Thickness",
-                        "property": "unselected_zone_border_thickness",
-                    },
-                    {
-                        "label": "Unselected Zone Border Color",
-                        "property": "unselected_zone_border_color",
-                    },
-                    {
-                        "label": "Unselected Zone Fill Color",
-                        "property": "unselected_zone_fill_color",
-                    },
-                    {
-                        "label": "Selected Zone Border Thickness",
-                        "property": "selected_zone_border_thickness",
-                    },
-                    {
-                        "label": "Selected Zone Border Color",
-                        "property": "selected_zone_border_color",
-                    },
-                    {
-                        "label": "Selected Zone Fill Color",
-                        "property": "selected_zone_fill_color",
-                    },
-                ]
-            }
-        ]
 
         self._property_to_widget = {}
 
@@ -125,7 +125,7 @@ class DialogChangeSettings(QDialog):
         self.tabs = QTabWidget()
         layout.addWidget(self.tabs)
 
-        for tab in self._settings_by_tab:
+        for tab in self.SETTINGS_BY_TAB:
             tab_widget = QWidget()
             tab_layout = QVBoxLayout(tab_widget)
             tab_title = tab["title"]
