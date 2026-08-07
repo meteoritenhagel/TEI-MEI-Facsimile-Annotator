@@ -27,36 +27,11 @@ from app.services.document_service import DocumentService
 from app.services.settings_service import SettingsService
 from app.services.xml_id_service import XmlIdService
 from app.ui.facsimile_canvas import FacsimileCanvas
+from app.ui.widgets import FocusableLineEdit
 from app.viewmodels.document_viewmodel import DocumentViewModel
 from app.viewmodels.settings_viewmodel import SettingsViewModel
 from app.viewmodels.surface_viewmodel import SurfaceViewModel
 from app.viewmodels.zone_viewmodel import ZoneViewModel
-
-
-class FocusableLineEdit(QLineEdit):
-    """
-    FocusableLineEdit endows a QLineEdit with a signal when the widget gains focus.
-
-    Attributes:
-        inFocus (Signal): Signal that is emitted when the widget gains focus.
-
-    Methods:
-        focusInEvent (QEvent): Override. Is called when the widget gains focus.
-    """
-    inFocus = Signal()
-
-    def __init__(self, *args, **kwargs):
-        """
-        Initializes the FocusableLineEdit instance.
-        """
-        super(FocusableLineEdit, self).__init__(*args, **kwargs)
-
-    def focusInEvent(self, event: QEvent):
-        """
-        Override. Is called when the widget gains focus.
-        :param event: The event that is passed.
-        """
-        self.inFocus.emit()
 
 
 class MainWindow(QMainWindow):
