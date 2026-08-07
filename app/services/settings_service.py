@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import dataclasses
 import typing
 
@@ -40,22 +41,15 @@ class SettingsService(QObject):
             settings_defaults.update(dataclasses.asdict(cls()))
         self.settings_defaults = settings_defaults
 
+    def create_temporary_settings_viewmodel(self) -> SettingsViewModel:
+        return copy.deepcopy(self._settings_vm)
+
+    def apply_temporary_settings_viewmodel(self, temporary_settings_viewmodel: SettingsViewModel) -> None:
+        self._settings_vm.geometry = temporary_settings_viewmodel.geometry
+        ...
+
     def load_settings(self) -> None:
-        self._settings_vm.geometry = self._load_setting("geometry")
-        self._settings_vm.windowState = self._load_setting("windowState")
-        self._settings_vm.image_brightness = self._load_setting("image_brightness")
-        self._settings_vm.image_contrast = self._load_setting("image_contrast")
-        self._settings_vm.image_saturation = self._load_setting("image_saturation")
-        self._settings_vm.canvas_background_color = self._load_setting("canvas_background_color")
-        self._settings_vm.create_zone_border_thickness = self._load_setting("create_zone_border_thickness")
-        self._settings_vm.create_zone_border_color = self._load_setting("create_zone_border_color")
-        self._settings_vm.create_zone_fill_color = self._load_setting("create_zone_fill_color")
-        self._settings_vm.unselected_zone_border_thickness = self._load_setting("unselected_zone_border_thickness")
-        self._settings_vm.unselected_zone_border_color = self._load_setting("unselected_zone_border_color")
-        self._settings_vm.unselected_zone_fill_color = self._load_setting("unselected_zone_fill_color")
-        self._settings_vm.selected_zone_border_thickness = self._load_setting("selected_zone_border_thickness")
-        self._settings_vm.selected_zone_border_color = self._load_setting("selected_zone_border_color")
-        self._settings_vm.selected_zone_fill_color = self._load_setting("selected_zone_fill_color")
+        self._load_settings_to_viewmodel(self._settings_vm, load_default_values=False)
 
     def save_settings(self) -> None:
         self._save_setting("geometry", self._settings_vm.geometry)
@@ -74,11 +68,28 @@ class SettingsService(QObject):
         self._save_setting("selected_zone_border_color", self._settings_vm.selected_zone_border_color)
         self._save_setting("selected_zone_fill_color", self._settings_vm.selected_zone_fill_color)
 
-    def _load_setting(self, settings_key: str) -> object:
+    def _load_settings_to_viewmodel(self, settings_vm: SettingsViewModel, load_default_values: bool = False) -> None:
+        settings_vm.geometry = self._load_setting("geometry", load_default_values)
+        settings_vm.windowState = self._load_setting("windowState", load_default_values)
+        settings_vm.image_brightness = self._load_setting("image_brightness", load_default_values)
+        settings_vm.image_contrast = self._load_setting("image_contrast", load_default_values)
+        settings_vm.image_saturation = self._load_setting("image_saturation", load_default_values)
+        settings_vm.canvas_background_color = self._load_setting("canvas_background_color", load_default_values)
+        settings_vm.create_zone_border_thickness = self._load_setting("create_zone_border_thickness", load_default_values)
+        settings_vm.create_zone_border_color = self._load_setting("create_zone_border_color", load_default_values)
+        settings_vm.create_zone_fill_color = self._load_setting("create_zone_fill_color", load_default_values)
+        settings_vm.unselected_zone_border_thickness = self._load_setting("unselected_zone_border_thickness", load_default_values)
+        settings_vm.unselected_zone_border_color = self._load_setting("unselected_zone_border_color", load_default_values)
+        settings_vm.unselected_zone_fill_color = self._load_setting("unselected_zone_fill_color", load_default_values)
+        settings_vm.selected_zone_border_thickness = self._load_setting("selected_zone_border_thickness", load_default_values)
+        settings_vm.selected_zone_border_color = self._load_setting("selected_zone_border_color", load_default_values)
+        settings_vm.selected_zone_fill_color = self._load_setting("selected_zone_fill_color", load_default_values)
+
+    def _load_setting(self, settings_key: str, load_default_values: bool = False) -> object:
         setting_type = self.settings_types[settings_key]
         value = self._repository.load(settings_key)
 
-        if value is None:  # if unset, return default value
+        if value is None or load_default_values:  # if unset, return default value
             return self.settings_defaults[settings_key]
 
         if issubclass(setting_type, QColor):
@@ -89,7 +100,6 @@ class SettingsService(QObject):
             return setting_type(value)
 
         return value
-
 
     def _save_setting(self, settings_key: str, value: object) -> None:
         setting_type = self.settings_types[settings_key]

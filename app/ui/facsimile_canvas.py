@@ -25,7 +25,6 @@ from PySide6.QtWidgets import (
 
 from app.models.document import Zone
 from app.services.document_service import DocumentService
-from app.services.settings_service import SettingsService
 from app.viewmodels.document_viewmodel import DocumentViewModel
 from app.viewmodels.settings_viewmodel import SettingsViewModel
 from app.viewmodels.surface_viewmodel import SurfaceViewModel
