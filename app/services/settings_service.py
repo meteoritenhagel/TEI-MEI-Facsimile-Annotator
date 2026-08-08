@@ -48,12 +48,15 @@ class SettingsService(QObject):
         "create_zone_border_thickness",
         "create_zone_border_color",
         "create_zone_fill_color",
+        "create_zone_fill_opacity",
         "unselected_zone_border_thickness",
         "unselected_zone_border_color",
         "unselected_zone_fill_color",
+        "unselected_zone_fill_opacity",
         "selected_zone_border_thickness",
         "selected_zone_border_color",
         "selected_zone_fill_color",
+        "selected_zone_fill_opacity",
     ]
 
     def __init__(

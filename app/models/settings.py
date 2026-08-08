@@ -103,14 +103,17 @@ class DisplaySettings:
 
     create_zone_border_thickness: float_range[0.5, 5, 0.5] = 1.5
     create_zone_border_color: QColor = field(default_factory=lambda: QColor("#247a42"))
-    create_zone_fill_color: QColor = field(default_factory=lambda: QColor(84, 180, 100, 35))
+    create_zone_fill_color: QColor = field(default_factory=lambda: QColor(84, 180, 100))
+    create_zone_fill_opacity: int_range[0, 255] = 35
 
     unselected_zone_border_thickness: float_range[0.5, 5, 0.5] = 1.5
     unselected_zone_border_color: QColor = field(default_factory=lambda: QColor("#d24d1f"))
-    unselected_zone_fill_color: QColor = field(default_factory=lambda: QColor(255, 224, 102, 40))
+    unselected_zone_fill_color: QColor = field(default_factory=lambda: QColor(255, 224, 102))
+    unselected_zone_fill_opacity: int_range[0, 255] = 40
 
     selected_zone_border_thickness: float_range[0.5, 5, 0.5] = 3.0
     selected_zone_border_color: QColor = field(default_factory=lambda: QColor("#0b63ce"))
-    selected_zone_fill_color: QColor = field(default_factory=lambda: QColor(255, 224, 102, 85))
+    selected_zone_fill_color: QColor = field(default_factory=lambda: QColor(255, 224, 102))
+    selected_zone_fill_opacity: int_range[0, 255] = 85
 
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 from PySide6.QtCore import QObject, Signal, QByteArray
 from PySide6.QtGui import QColor
 
-from app.models.settings import float_range
+from app.models.settings import float_range, int_range
 
 
 class SettingsViewModel(QObject):
@@ -25,12 +25,15 @@ class SettingsViewModel(QObject):
         create_zone_border_thickness: float_range[0.5, 5, 0.5] | None = None,
         create_zone_border_color: QColor | None = None,
         create_zone_fill_color: QColor | None = None,
+        create_zone_fill_opacity: int_range[0, 255] | None = None,
         unselected_zone_border_thickness: float_range[0.5, 5, 0.5] | None = None,
         unselected_zone_border_color: QColor | None = None,
         unselected_zone_fill_color: QColor | None = None,
+        unselected_zone_fill_opacity: int_range[0, 255] | None = None,
         selected_zone_border_thickness: float_range[0.5, 5, 0.5] | None = None,
         selected_zone_border_color: QColor | None = None,
         selected_zone_fill_color: QColor | None = None,
+        selected_zone_fill_opacity: int_range[0, 255] | None = None,
 
         parent: QObject | None = None,
     ) -> None:
@@ -47,18 +50,21 @@ class SettingsViewModel(QObject):
         self._create_zone_border_thickness = create_zone_border_thickness
         self._create_zone_border_color = create_zone_border_color
         self._create_zone_fill_color = create_zone_fill_color
+        self._create_zone_fill_opacity = create_zone_fill_opacity
         self._unselected_zone_border_thickness = unselected_zone_border_thickness
         self._unselected_zone_border_color = unselected_zone_border_color
         self._unselected_zone_fill_color = unselected_zone_fill_color
+        self._unselected_zone_fill_opacity = unselected_zone_fill_opacity
         self._selected_zone_border_thickness = selected_zone_border_thickness
         self._selected_zone_border_color = selected_zone_border_color
         self._selected_zone_fill_color = selected_zone_fill_color
+        self._selected_zone_fill_opacity = selected_zone_fill_opacity
 
     def copy(self) -> SettingsViewModel:
         def copy_color(c):
             return QColor(c) if c is not None else None
 
-        def copy_qbytearray(qb):
+        def copy_q_bytearray(qb):
             return QByteArray(qb.data()) if qb is not None else None
 
         def copy_int_range(val):
@@ -68,8 +74,8 @@ class SettingsViewModel(QObject):
             return type(val)(val) if val is not None else None
 
         return SettingsViewModel(
-            geometry=copy_qbytearray(self.geometry),
-            windowState=copy_qbytearray(self.windowState),
+            geometry=copy_q_bytearray(self.geometry),
+            windowState=copy_q_bytearray(self.windowState),
 
             image_brightness=copy_float_range(self.image_brightness),
             image_contrast=copy_float_range(self.image_contrast),
@@ -79,12 +85,15 @@ class SettingsViewModel(QObject):
             create_zone_border_thickness=copy_float_range(self.create_zone_border_thickness),
             create_zone_border_color=copy_color(self.create_zone_border_color),
             create_zone_fill_color=copy_color(self.create_zone_fill_color),
+            create_zone_fill_opacity=copy_int_range(self.create_zone_fill_opacity),
             unselected_zone_border_thickness=copy_float_range(self.unselected_zone_border_thickness),
             unselected_zone_border_color=copy_color(self.unselected_zone_border_color),
             unselected_zone_fill_color=copy_color(self.unselected_zone_fill_color),
+            unselected_zone_fill_opacity=copy_int_range(self.unselected_zone_fill_opacity),
             selected_zone_border_thickness=copy_float_range(self.selected_zone_border_thickness),
             selected_zone_border_color=copy_color(self.selected_zone_border_color),
             selected_zone_fill_color=copy_color(self.selected_zone_fill_color),
+            selected_zone_fill_opacity=copy_int_range(self.selected_zone_fill_opacity),
             parent=None
         )
 
@@ -182,6 +191,16 @@ class SettingsViewModel(QObject):
             self.display_settings_changed.emit()
 
     @property
+    def create_zone_fill_opacity(self) -> int_range[0, 255]:
+        return self._create_zone_fill_opacity
+
+    @create_zone_fill_opacity.setter
+    def create_zone_fill_opacity(self, value: int_range[0, 255]) -> None:
+        if self._create_zone_fill_opacity != value:
+            self._create_zone_fill_opacity = value
+            self.display_settings_changed.emit()
+
+    @property
     def unselected_zone_border_thickness(self) -> float_range[0.5, 5, 0.5]:
         return self._unselected_zone_border_thickness
 
@@ -212,6 +231,16 @@ class SettingsViewModel(QObject):
             self.display_settings_changed.emit()
 
     @property
+    def unselected_zone_fill_opacity(self) -> int_range[0, 255]:
+        return self._unselected_zone_fill_opacity
+
+    @unselected_zone_fill_opacity.setter
+    def unselected_zone_fill_opacity(self, value: int_range[0, 255]) -> None:
+        if self._unselected_zone_fill_opacity != value:
+            self._unselected_zone_fill_opacity = value
+            self.display_settings_changed.emit()
+
+    @property
     def selected_zone_border_thickness(self) -> float_range[0.5, 5, 0.5]:
         return self._selected_zone_border_thickness
 
@@ -239,4 +268,14 @@ class SettingsViewModel(QObject):
     def selected_zone_fill_color(self, value: QColor) -> None:
         if self._selected_zone_fill_color != value:
             self._selected_zone_fill_color = value
+            self.display_settings_changed.emit()
+
+    @property
+    def selected_zone_fill_opacity(self) -> int_range[0, 255]:
+        return self._selected_zone_fill_opacity
+
+    @selected_zone_fill_opacity.setter
+    def selected_zone_fill_opacity(self, value: int_range[0, 255]) -> None:
+        if self._selected_zone_fill_opacity != value:
+            self._selected_zone_fill_opacity = value
             self.display_settings_changed.emit()

@@ -177,13 +177,15 @@ class FacsimileCanvas(QGraphicsView):
         self._refresh_selection()
 
     def _make_rect_item(self, zone_vm: ZoneViewModel, index: int) -> QGraphicsRectItem:
+        brush_color = self._settings_vm.unselected_zone_fill_color
+        brush_color.setAlpha(self._settings_vm.unselected_zone_fill_opacity)
         item = self._scene.addRect(
             zone_vm.ulx,
             zone_vm.uly,
             zone_vm.lrx - zone_vm.ulx,
             zone_vm.lry - zone_vm.uly,
             self._pen_for_zone(index),
-            QBrush(self._settings_vm.unselected_zone_fill_color),
+            QBrush(brush_color),
         )
         item.setZValue(10)
         item.setData(0, index)
@@ -208,9 +210,9 @@ class FacsimileCanvas(QGraphicsView):
         for index, item in self._zone_items.items():
             item.setPen(self._pen_for_zone(index))
             selected = index == self._document_vm.selected_zone_index
-            item.setBrush(QBrush(
-                self._settings_vm.selected_zone_fill_color if selected else self._settings_vm.unselected_zone_fill_color
-            ))
+            brush_color = self._settings_vm.selected_zone_fill_color if selected else self._settings_vm.unselected_zone_fill_color
+            brush_color.setAlpha(self._settings_vm.selected_zone_fill_opacity if selected else self._settings_vm.unselected_zone_fill_opacity)
+            item.setBrush(QBrush(brush_color))
 
     def _pen_for_zone(self, index: int) -> QPen:
         selected = index == self._document_vm.selected_zone_index
@@ -349,13 +351,15 @@ class FacsimileCanvas(QGraphicsView):
 
     def _start_create(self, scene_pos: QPointF) -> None:
         self._drag = _DragState(mode="create", start=scene_pos)
+        brush_color = self._settings_vm.create_zone_fill_color
+        brush_color.setAlpha(self._settings_vm.create_zone_fill_opacity)
         self._draft_rect_item = self._scene.addRect(
             scene_pos.x(),
             scene_pos.y(),
             0,
             0,
             QPen(self._settings_vm.create_zone_border_color, self._settings_vm.create_zone_border_thickness, Qt.PenStyle.DashLine),
-            QBrush(self._settings_vm.create_zone_fill_color),
+            QBrush(brush_color),
         )
         self._draft_rect_item.setZValue(20)
 

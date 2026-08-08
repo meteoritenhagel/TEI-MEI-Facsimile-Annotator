@@ -73,6 +73,10 @@ class DialogChangeSettings(QDialog):
                     "property": "create_zone_fill_color",
                 },
                 {
+                    "label": "Create Zone Fill Opacity",
+                    "property": "create_zone_fill_opacity",
+                },
+                {
                     "label": "Unselected Zone Border Thickness",
                     "property": "unselected_zone_border_thickness",
                 },
@@ -85,6 +89,10 @@ class DialogChangeSettings(QDialog):
                     "property": "unselected_zone_fill_color",
                 },
                 {
+                    "label": "Unselected Zone Fill Opacity",
+                    "property": "unselected_zone_fill_opacity",
+                },
+                {
                     "label": "Selected Zone Border Thickness",
                     "property": "selected_zone_border_thickness",
                 },
@@ -95,6 +103,10 @@ class DialogChangeSettings(QDialog):
                 {
                     "label": "Selected Zone Fill Color",
                     "property": "selected_zone_fill_color",
+                },
+                {
+                    "label": "Selected Zone Fill Opacity",
+                    "property": "selected_zone_fill_opacity",
                 },
             ]
         }
@@ -207,7 +219,7 @@ class DialogChangeSettings(QDialog):
         """
         layout = QHBoxLayout()
         label = QLabel(label_text)
-        color_button = ColorButton(label=label_text)
+        color_button = ColorButton(label=label_text, show_alpha=False)
         layout.addWidget(label)
         layout.addWidget(color_button)
         parent_layout.addLayout(layout)
