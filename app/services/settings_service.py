@@ -12,7 +12,30 @@ from app.viewmodels.settings_viewmodel import SettingsViewModel
 
 
 class SettingsService(QObject):
-    # TODO: Add new settings here
+    """
+    Settings service is a service class for manipulation of SettingsViewModel instances.
+
+    Properties:
+        SETTINGS_KEYS: All settings are registered here.
+
+        Methods:
+            load_settings: Load all settings from the settings repository into the current class instance.
+            save_settings: Save all settings from the current class instance into the settings repository.
+            create_temporary_settings_viewmodel: Create a deep copy of the associated SettingsViewModel instance.
+            apply_temporary_settings_viewmodel (SettingsViewModel): Applies the state of a provided SettingsViewModel
+                    to the current class instance.
+            load_settings_to_temporary_viewmodel (SettingsViewModel, bool): Loads either all the settings from the
+                    current instance into the provided SettingsViewModel, or loads all default setting values into
+                    the provided SettingsViewModel.
+
+        Private Methods:
+            _load_setting (str, bool): Loads the default setting or the setting with the provided settings key from the
+                    repository into the current class instance.
+            _save_setting (str): Saves the current instance's setting with the provided settings key into the
+                    settings repository.
+    """
+
+    # Register new settings here
     SETTINGS_KEYS: list[str] = [
         "geometry",
         "windowState",
@@ -59,26 +82,56 @@ class SettingsService(QObject):
             settings_defaults.update(dataclasses.asdict(cls()))
         self.settings_defaults = settings_defaults
 
-    def create_temporary_settings_viewmodel(self) -> SettingsViewModel:
-        return self._settings_vm.copy()
-
-    def apply_temporary_settings_viewmodel(self, temporary_settings_viewmodel: SettingsViewModel) -> None:
-        for key in self.SETTINGS_KEYS:
-            setattr(self._settings_vm, key, getattr(temporary_settings_viewmodel, key))
-
     def load_settings(self) -> None:
-        self.load_settings_to_viewmodel(self._settings_vm, load_default_values=False)
+        """
+        Load all settings from the settings repository into the current class instance.
+        :return:
+        """
+        self.load_settings_to_temporary_viewmodel(self._settings_vm, load_default_values=False)
 
     def save_settings(self) -> None:
+        """
+        Load all settings from the current class instance into the settings repository.
+        """
         for key in self.SETTINGS_KEYS:
             self._save_setting(key, getattr(self._settings_vm, key))
 
-    def load_settings_to_viewmodel(self, settings_vm: SettingsViewModel, load_default_values: bool = False) -> None:
+    def create_temporary_settings_viewmodel(self) -> SettingsViewModel:
+        """
+        Create a deep copy of the associated SettingsViewModel instance.
+        :return: SettingsViewModel deep copy.
+        """
+        return self._settings_vm.copy()
+
+    def apply_temporary_settings_viewmodel(self, temporary_settings_viewmodel: SettingsViewModel) -> None:
+        """
+        Applies the state of a provided SettingsViewModel to the current class instance.
+        :param temporary_settings_viewmodel: SettingsViewModel instance from which the state should be applied.
+        """
+        for key in self.SETTINGS_KEYS:
+            setattr(self._settings_vm, key, getattr(temporary_settings_viewmodel, key))
+
+    def load_settings_to_temporary_viewmodel(
+            self, settings_vm: SettingsViewModel, load_default_values: bool = False) -> None:
+        """
+        Loads either all the settings from the current instance's SettingsViewModel into the provided SettingsViewModel,
+        or loads all default setting values into the provided SettingsViewModel.
+        :param settings_vm: SettingsViewModel instance to which the state should be applied.
+        :param load_default_values: If True, load the default values, otherwise, load the current instance's values.
+        """
         for key in self.SETTINGS_KEYS:
             value = self._load_setting(key, load_default_values)
             setattr(settings_vm, key, value)
 
     def _load_setting(self, settings_key: str, load_default_values: bool = False) -> object:
+        """
+        Loads the default setting or the setting with the provided settings key from the repository into the current
+        class instance.
+
+        :param settings_key: Unique setting identifier.
+        :param load_default_values: If True, load the default values. Otherwise, load from the settings repository.
+        :return: Value of setting.
+        """
         setting_type = self.settings_types[settings_key]
         value = self._repository.load(settings_key)
 
@@ -95,6 +148,12 @@ class SettingsService(QObject):
         return value
 
     def _save_setting(self, settings_key: str, value: object) -> None:
+        """
+        Saves the current instance's setting with the provided settings key into the settings repository.
+
+        :param settings_key: Unique setting identifier.
+        :param value: Value of setting.
+        """
         setting_type = self.settings_types[settings_key]
 
         if issubclass(setting_type, QColor):

@@ -134,16 +134,16 @@ class DialogChangeSettings(QDialog):
                 prop = setting["property"]
                 value = getattr(self._temporary_settings, prop)
 
-                # TODO: register types here and in self._update_setting_from_widget
-                if isinstance(value, (int_range, float_range)):
+                # Register types here and in self._update_setting_from_widget
+                if issubclass(self._settings_service.settings_types[prop], (int_range, float_range)):
                     slider = self._create_slider(setting["label"], tab_layout, type(value))
                     slider.valueChanged.connect(partial(self._update_setting_from_widget, prop, slider))
                     self._property_to_widget[prop] = slider
-                elif isinstance(value, QColor):
+                elif issubclass(self._settings_service.settings_types[prop], QColor):
                     color_button = self._create_color_button(setting["label"], tab_layout)
                     color_button.colorChanged.connect(partial(self._update_setting_from_widget, prop, color_button))
                     self._property_to_widget[prop] = color_button
-                elif isinstance(value, bool):
+                elif issubclass(self._settings_service.settings_types[prop], bool):
                     checkbox = QCheckBox(setting["label"])
                     checkbox.toggled.connect(partial(self._update_setting_from_widget, prop, checkbox))
                     self._property_to_widget[prop] = checkbox
@@ -233,7 +233,7 @@ class DialogChangeSettings(QDialog):
         """
         Loads the default application settings and applies them to the widgets.
         """
-        self._settings_service.load_settings_to_viewmodel(self._temporary_settings, load_default_values=True)
+        self._settings_service.load_settings_to_temporary_viewmodel(self._temporary_settings, load_default_values=True)
         self._update_widgets_from_settings()
 
     def accept(self):
