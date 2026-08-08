@@ -8,14 +8,15 @@ from PySide6.QtWidgets import QDialog, QCheckBox, QHBoxLayout, QVBoxLayout, QPus
 from app.models.settings import int_range, float_range
 from app.services.settings_service import SettingsService
 from app.ui.widgets import LabeledSlider, ColorButton
+from app.viewmodels.settings_viewmodel import SettingsViewModel
 
 
 class DialogChangeSettings(QDialog):
     """
+    TODO: Update docstring
     This dialog is for modifying the application settings.
 
     Methods:
-        exec: Override. Executes the dialog in the main loop and returns the settings dict on accept, else None.
         reject: Override.
 
     Private Methods:
@@ -32,7 +33,7 @@ class DialogChangeSettings(QDialog):
         _restore_default: Loads the default application settings and applies them to the widgets.
     """
 
-    # TODO: Here, register settings that should be accessible in the dialog!
+    # Here, register settings that should be accessible in the dialog!
     # The settings must be available as properties in the SettingsViewModel.
     SETTINGS_BY_TAB = [
         {
@@ -99,7 +100,7 @@ class DialogChangeSettings(QDialog):
         }
     ]
 
-    def __init__(self, settings_service: SettingsService):
+    def __init__(self, settings_service: SettingsService, settings_viewmodel: SettingsViewModel):
         """
         Initialize the class instance.
         """
@@ -108,7 +109,8 @@ class DialogChangeSettings(QDialog):
         self.setWindowTitle("Change Settings")
 
         self._settings_service = settings_service
-        self._temporary_settings = settings_service.create_temporary_settings_viewmodel()
+        self._global_settings = settings_viewmodel
+        self._original_settings = settings_service.create_temporary_settings_viewmodel()
 
         self._property_to_widget = {}
 
@@ -132,24 +134,25 @@ class DialogChangeSettings(QDialog):
 
             for setting in tab["settings"]:
                 prop = setting["property"]
-                value = getattr(self._temporary_settings, prop)
+                value = getattr(self._global_settings, prop)
+                settings_type = self._settings_service.settings_types[prop]
 
                 # Register types here and in self._update_setting_from_widget
-                if issubclass(self._settings_service.settings_types[prop], (int_range, float_range)):
-                    slider = self._create_slider(setting["label"], tab_layout, type(value))
+                if issubclass(settings_type, (int_range, float_range)):
+                    slider = self._create_slider(setting["label"], tab_layout, settings_type)
                     slider.valueChanged.connect(partial(self._update_setting_from_widget, prop, slider))
                     self._property_to_widget[prop] = slider
-                elif issubclass(self._settings_service.settings_types[prop], QColor):
+                elif issubclass(settings_type, QColor):
                     color_button = self._create_color_button(setting["label"], tab_layout)
                     color_button.colorChanged.connect(partial(self._update_setting_from_widget, prop, color_button))
                     self._property_to_widget[prop] = color_button
-                elif issubclass(self._settings_service.settings_types[prop], bool):
+                elif issubclass(settings_type, bool):
                     checkbox = QCheckBox(setting["label"])
                     checkbox.toggled.connect(partial(self._update_setting_from_widget, prop, checkbox))
                     self._property_to_widget[prop] = checkbox
                     tab_layout.addWidget(checkbox)
                 else:
-                    raise NotImplementedError(f"Settings type {type(value)} is not supported.")
+                    raise NotImplementedError(f"Settings type {settings_type} is not supported.")
 
             self.tabs.addTab(tab_widget, tab_title)
 
@@ -211,34 +214,39 @@ class DialogChangeSettings(QDialog):
         return color_button
 
     def _update_setting_from_widget(self, prop, widget):
-        # TODO: Implement types here, too
+        # If a settings of a new type is added, add here how to set the settings value.
         if isinstance(widget, LabeledSlider):
-            setattr(self._temporary_settings, prop, widget.value())
+            setattr(self._global_settings, prop, widget.value())
         elif isinstance(widget, ColorButton):
-            setattr(self._temporary_settings, prop, widget.color())
+            setattr(self._global_settings, prop, widget.color())
         elif isinstance(widget, QCheckBox):
-            setattr(self._temporary_settings, prop, widget.isChecked())
+            setattr(self._global_settings, prop, widget.isChecked())
+        else:
+            raise NotImplementedError(f"Widget type {type(widget)} is not supported.")
 
     def _update_widgets_from_settings(self):
+        # If a settings of a new type is added, add here how to load the settings value from it.
         for prop, widget in self._property_to_widget.items():
-            value = getattr(self._temporary_settings, prop)
+            value = getattr(self._global_settings, prop)
             if isinstance(widget, LabeledSlider):
                 widget.setValue(value)
             elif isinstance(widget, ColorButton):
                 widget.set_color(value)
             elif isinstance(widget, QCheckBox):
                 widget.setChecked(value)
+            else:
+                raise NotImplementedError(f"Widget type {type(widget)} is not supported.")
 
     def _restore_default(self):
         """
         Loads the default application settings and applies them to the widgets.
         """
-        self._settings_service.load_settings_to_temporary_viewmodel(self._temporary_settings, load_default_values=True)
+        self._settings_service.load_settings_to_temporary_viewmodel(self._global_settings, load_default_values=True)
         self._update_widgets_from_settings()
 
-    def accept(self):
+    def reject(self):
         """
-        Accepts the dialog, i.e., the window settings are applied to the global settings state.
+        Rejects the dialog, i.e., the previous settings state is restored.
         """
-        self._settings_service.apply_temporary_settings_viewmodel(self._temporary_settings)
+        self._settings_service.apply_temporary_settings_viewmodel(self._original_settings)
         super().accept()

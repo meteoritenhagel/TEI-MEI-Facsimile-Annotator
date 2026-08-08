@@ -495,7 +495,7 @@ class MainWindow(QMainWindow):
             self.restoreState(window_state)
 
     def _open_settings_dialog(self):
-        dialog_change_settings = DialogChangeSettings(self._settings_service)
+        dialog_change_settings = DialogChangeSettings(self._settings_service, self._settings_vm)
         dialog_change_settings.exec()
 
     def closeEvent(self, event: QEvent) -> None:

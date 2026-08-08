@@ -16,23 +16,25 @@ class SettingsService(QObject):
     Settings service is a service class for manipulation of SettingsViewModel instances.
 
     Properties:
-        SETTINGS_KEYS: All settings are registered here.
+        SETTINGS_KEYS (list[str]): All unique settings identifiers are registered here.
+        settings_types (dict[str, type]): Maps each unique settings identifier to its value type.
+        settings_defaults (dict[str, object]): Maps each unique settings identifier to its default value.
 
-        Methods:
-            load_settings: Load all settings from the settings repository into the current class instance.
-            save_settings: Save all settings from the current class instance into the settings repository.
-            create_temporary_settings_viewmodel: Create a deep copy of the associated SettingsViewModel instance.
-            apply_temporary_settings_viewmodel (SettingsViewModel): Applies the state of a provided SettingsViewModel
-                    to the current class instance.
-            load_settings_to_temporary_viewmodel (SettingsViewModel, bool): Loads either all the settings from the
-                    current instance into the provided SettingsViewModel, or loads all default setting values into
-                    the provided SettingsViewModel.
+    Methods:
+        load_settings: Load all settings from the settings repository into the current class instance.
+        save_settings: Save all settings from the current class instance into the settings repository.
+        create_temporary_settings_viewmodel: Create a deep copy of the associated SettingsViewModel instance.
+        apply_temporary_settings_viewmodel (SettingsViewModel): Applies the state of a provided SettingsViewModel
+                to the current class instance.
+        load_settings_to_temporary_viewmodel (SettingsViewModel, bool): Loads either all the settings from the
+                current instance into the provided SettingsViewModel, or loads all default setting values into
+                the provided SettingsViewModel.
 
-        Private Methods:
-            _load_setting (str, bool): Loads the default setting or the setting with the provided settings key from the
-                    repository into the current class instance.
-            _save_setting (str): Saves the current instance's setting with the provided settings key into the
-                    settings repository.
+    Private Methods:
+        _load_setting (str, bool): Loads the default setting or the setting with the provided settings key from the
+                repository into the current class instance.
+        _save_setting (str): Saves the current instance's setting with the provided settings key into the
+                settings repository.
     """
 
     # Register new settings here
