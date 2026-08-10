@@ -7,9 +7,13 @@ Constants:
     DOMAIN_NAME: Domain name associated with the application.
 
     DOCUMENT_FILE_EXTENSION: File extension associated with saving/loading the document to/from the file system.
+
+    IMAGE_DIRECTORY: Default image directory for image paths in exported TEI/MEI
 """
 ORGANIZATION_NAME: str = "Tristan Repolusk"
 APPLICATION_NAME: str = "TEI/MEI Facsimile Annotator"
-DOMAIN_NAME: str = "https://github.com/meteoritenhagel"
+DOMAIN_NAME: str = "https://github.com/meteoritenhagel/TEI-MEI-Facsimile-Annotator"
 
 DOCUMENT_FILE_EXTENSION: str = "fca"
+
+IMAGE_DIRECTORY: str = "../images/"

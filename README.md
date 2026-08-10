@@ -39,8 +39,9 @@ Widgets -> Services -> ViewModels -> Qt signals -> Widgets
 
 - Repositories (`app/repositories/`) encapsulate persistance mechanisms, most notably writing/reading to/from the file
   system or to Qt settings objects.
-  - `app/repositories/document_repository.py`: Reading/loading documents from/to file system.
-  - `app/repositories/settings_repository.py`: Reading/loading settings from/to Qt settings.
+  - `app/repositories/document_repository.py`: Reading/saving documents from/to file system.
+  - `app/repositories/settings_repository.py`: Reading/saving settings from/to Qt settings.
+  - `app/repositories/text_repository.py`: Saving text data to file system.
 - Models (`app/models/`) are frozen dataclasses for persisted content only. For example, for document content, the file
   `app/models/document.py` contains the dataclasses `Document`, `Surface`, and `Zone`. Models are not meant to hold
   live application states (see viewmodels), data manipulation methods (see services), or widgets (see views).
@@ -63,6 +64,7 @@ Widgets -> Services -> ViewModels -> Qt signals -> Widgets
     modified by mapping.
   - `app/services/settings_service.py`: Settings manipulation, e.g., loading default settings, creating temporary
     settings viewmodel objects, loading from temporary settings viewmodels, etc.
+  - `app/services/xml_export_service.py`: For exporting TEI/MEI XML data.
   - `app/services/xml_id_service.py`: Generates surface and zone xml:ids.
 - Views (`app/ui/`) are the layer that is closest to the user of the software. They consist of windows, dialogs and
   widgets that are used to display the application state (see viewmodels) to the user or allow its modification by the

@@ -15,7 +15,7 @@ class DocumentRepository:
 
     Methods:
         load (Path): Loads the serialized document data from the file system into the Document model.
-        save (Path): Saves the Document model data into a serialized file on the file system.
+        save (Path, Document): Saves the Document model data into a serialized file on the file system.
 
     Private Methods:
         _surface_from_dict (dict[str, Any]): Creates a Surface model from the serialized document data.

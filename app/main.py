@@ -8,6 +8,7 @@ from PySide6.QtWidgets import QApplication
 from app.app_state import AppState
 from app.repositories.document_repository import DocumentRepository
 from app.repositories.settings_repository import SettingsRepository
+from app.repositories.text_repository import TextRepository
 from app.services.document_service import DocumentService
 from app.services.settings_service import SettingsService
 from app.services.xml_id_service import XmlIdService
@@ -19,11 +20,12 @@ def main() -> int:
 
     document_repository = DocumentRepository()
     settings_repository = SettingsRepository()
+    text_repository = TextRepository()
 
     app_state = AppState()
     thread_pool = QThreadPool.globalInstance()
 
-    document_service = DocumentService(document_repository, app_state.document, thread_pool)
+    document_service = DocumentService(document_repository, text_repository, app_state.document, thread_pool)
     settings_service = SettingsService(settings_repository, app_state.settings)
     xml_id_service = XmlIdService()
 

@@ -3,7 +3,10 @@ Name: tei-mei-facsimile-annotator
 Version: 0.1.0
 Summary: Initial PySide6 scaffold for TEI/MEI facsimile zone annotation.
 Requires-Python: >=3.11
+License-File: LICENSE
 Requires-Dist: PySide6>=6.7
 Requires-Dist: msgpack>=1.0
+Requires-Dist: beautifulsoup4>=4.15.0
 Provides-Extra: dev
 Requires-Dist: pytest>=8.0; extra == "dev"
+Dynamic: license-file

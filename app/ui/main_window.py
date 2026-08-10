@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import override
 
@@ -162,6 +163,9 @@ class MainWindow(QMainWindow):
         action_settings = edit_menu.addAction("Settings...", self._open_settings_dialog)
         action_settings.setIcon(QIcon.fromTheme(QIcon.ThemeIcon.DocumentProperties))
 
+        # --- Export Menu ---
+        self.action_export = self.menuBar().addAction(f"Export {self._document_vm.document_type}", self._export_xml_as)
+
     def _build_toolbar(self) -> None:
         toolbar = QToolBar("Document", self)
         toolbar.setMovable(False)
@@ -206,6 +210,7 @@ class MainWindow(QMainWindow):
         side_panel.setMinimumWidth(340)
 
         dock = QDockWidget("Page Zones", self)
+        dock.setObjectName("dock")
         dock.setWidget(side_panel)
         dock.setFeatures(
             QDockWidget.DockWidgetFeature.DockWidgetMovable |
@@ -222,14 +227,20 @@ class MainWindow(QMainWindow):
         self._document_vm.current_page_index_changed.connect(self._rewire_current_surface)
         self._document_vm.current_page_index_changed.connect(self._refresh_all)
         self._document_vm.document_type_changed.connect(self._sync_document_type_combo)
+        self._document_vm.document_type_changed.connect(lambda doc: self.action_export.setText(f"Export {doc}"))
         self._document_vm.file_path_changed.connect(self._update_window_title)
         self._document_vm.dirty_changed.connect(self._update_window_title)
         self._document_vm.selected_zone_index_changed.connect(self._sync_selection)
-        self._document_service.open_succeeded.connect(lambda: self._status_label.setText("Opened"))
         self._document_service.add_surface_succeeded.connect(lambda: self._status_label.setText("Page added"))
+
+        self._document_service.open_succeeded.connect(lambda: self._status_label.setText("Opened"))
         self._document_service.save_succeeded.connect(lambda: self._status_label.setText("Saved"))
+        self._document_service.xml_export_succeeded.connect(lambda: self._status_label.setText("XML exported"))
+
         self._document_service.save_failed.connect(self._save_failed)
         self._document_service.open_failed.connect(self._open_failed)
+        self._document_service.xml_export_failed.connect(self._xml_export_failed)
+
         self._document_service.add_surface_failed.connect(self._add_surface_failed)
 
     def _rewire_current_surface(self, *_args) -> None:
@@ -323,6 +334,24 @@ class MainWindow(QMainWindow):
             path = path.with_suffix(f".{DOCUMENT_FILE_EXTENSION}")
         self._status_label.setText("Saving...")
         self._document_service.save_file_as(path)
+
+    def _export_xml_as(self) -> None:
+        default_filename = os.path.basename(self._document_vm.file_path.with_suffix(".xml")) if (
+                self._document_vm.file_path is not None) else ""
+
+        filename, _ = QFileDialog.getSaveFileName(
+            self,
+            "Save Document",
+            default_filename,
+            f"TEI/MEI XML (*.xml);;All Files (*)",
+        )
+        if not filename:
+            return
+        path = Path(filename)
+        if path.suffix == "":
+            path = path.with_suffix(f".xml")
+        self._status_label.setText("Saving...")
+        self._document_service.export_xml_as(path)
 
     def _add_page_image(self) -> None:
         filenames, _ = QFileDialog.getOpenFileNames(
@@ -515,6 +544,11 @@ class MainWindow(QMainWindow):
         message = f"Failed to open: {error}"
         self._status_label.setText(message)
         QMessageBox.warning(self, "Open Failed", message)
+
+    def _xml_export_failed(self, error: object) -> None:
+        message = f"Failed to export XML: {error}"
+        self._status_label.setText(message)
+        QMessageBox.warning(self, "XML Export Failed", message)
 
     def _add_surface_failed(self, error: object) -> None:
         message = f"Failed to add page: {error}"

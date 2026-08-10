@@ -7,12 +7,14 @@ from PySide6.QtCore import QObject, QRunnable, QThreadPool, Signal, Slot
 
 from app.models.document import Document, Surface, Zone
 from app.repositories.document_repository import DocumentRepository
+from app.repositories.text_repository import TextRepository
 from app.services.mapping_service import (
     document_to_viewmodel,
     surface_to_viewmodel,
     viewmodel_to_document,
     zone_to_viewmodel,
 )
+from app.services.xml_export_service import viewmodel_to_xml
 from app.viewmodels.document_viewmodel import DocumentViewModel
 from app.viewmodels.surface_viewmodel import SurfaceViewModel
 from app.viewmodels.zone_viewmodel import ZoneViewModel
@@ -66,14 +68,22 @@ class DocumentService(QObject):
     Signals:
         open_succeeded (Signal()): Emitted when opening a file was successful.
         save_succeeded (Signal()): Emitted when saving a file was successful.
-        open_failed (Signal()): Emitted when opening a file has failed.
-        save_failed (Signal()): Emitted when saving a file has failed.
+        xml_export_succeeded (Signal()): Emitted when exporting the XML file was successful.
+
+        open_failed (Signal(object)): Emitted when opening a file has failed.
+        save_failed (Signal(object)): Emitted when saving a file has failed.
+        xml_export_failed (Signal(object)): Emitted when exporting the XML file has failed.
+
+        add_surface_succeeded (Signal()): Emitted when adding surfaces was successful.
+        add_surface_failed (Signal(object)): Emitted when adding surfaces has failed.
 
     Methods:
         new_document: Creates a new document. Sets the viewmodel to an empty document state.
         open_file (Path): Opens the document file at the provided path.
         save_file: Saves the app state into a file on the file system.
         save_file_as (Path): Saves the app state at a specified path on the file system.
+        export_xml_as (Path): Exports the app state into a minimal TEI/MEI XML file on the file system.
+
         go_to_page (int): Navigates to the document page of specified index.
         add_surfaces_from_images (list[Path]): Adds surfaces created from image files to the document.
         remove_surface (int): Removes a surface from the document.
@@ -85,14 +95,19 @@ class DocumentService(QObject):
     """
     open_succeeded = Signal()
     save_succeeded = Signal()
+    xml_export_succeeded = Signal()
+
     save_failed = Signal(object)
     open_failed = Signal(object)
+    xml_export_failed = Signal(object)
+
     add_surface_succeeded = Signal()
     add_surface_failed = Signal(object)
 
     def __init__(
         self,
-        repository: DocumentRepository,
+        document_repository: DocumentRepository,
+        text_repository: TextRepository,
         document_viewmodel: DocumentViewModel,
         thread_pool: QThreadPool | None = None,
         parent: QObject | None = None,
@@ -100,13 +115,15 @@ class DocumentService(QObject):
         """
         Initialize the service class.
 
-        :param repository: Document repository.
+        :param document_repository: Document repository.
+        :param text_repository: Text repository.
         :param document_viewmodel: Document viewmodel.
         :param thread_pool: Thread pool to use.
         :param parent: QObject parent.
         """
         super().__init__(parent)
-        self._repository = repository
+        self._document_repository = document_repository
+        self._text_repository = text_repository
         self._document_vm = document_viewmodel
         self._thread_pool = thread_pool or QThreadPool.globalInstance()
         self._active_tasks: set[RepoTask] = set()
@@ -128,7 +145,7 @@ class DocumentService(QObject):
 
         :param path: Path to the file to open.
         """
-        task: RepoTask[Document] = RepoTask(lambda: self._repository.load(path))
+        task: RepoTask[Document] = RepoTask(lambda: self._document_repository.load(path))
         task.signals.finished.connect(lambda doc: self._open_finished(path, doc))
         task.signals.failed.connect(self.open_failed.emit)
         self._run_task(task)
@@ -150,6 +167,19 @@ class DocumentService(QObject):
         :param path: Path to save the app state to.
         """
         self._save_to_path(path)
+
+    def export_xml_as(self, path: Path) -> None:
+        """
+        Exports the app state into a minimal TEI/MEI XML file on the file system.
+
+        :param path: Path to save the TEI/MEI XML data to.
+        """
+        xml_text = viewmodel_to_xml(self._document_vm)
+        task: RepoTask[None] = RepoTask(lambda: self._text_repository.save(path, xml_text))
+        task.signals.finished.connect(lambda: self.xml_export_succeeded.emit())
+        task.signals.failed.connect(self.xml_export_failed.emit)
+        self._run_task(task)
+
 
     def go_to_page(self, index: int) -> None:
         """
@@ -296,7 +326,7 @@ class DocumentService(QObject):
 
     def _save_to_path(self, path: Path) -> None:
         doc = viewmodel_to_document(self._document_vm)
-        task: RepoTask[None] = RepoTask(lambda: self._repository.save(path, doc))
+        task: RepoTask[None] = RepoTask(lambda: self._document_repository.save(path, doc))
         task.signals.finished.connect(lambda _: self._save_finished(path))
         task.signals.failed.connect(self.save_failed.emit)
         self._run_task(task)
