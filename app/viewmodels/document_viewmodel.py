@@ -9,6 +9,17 @@ from app.viewmodels.surface_viewmodel import SurfaceViewModel
 
 
 class DocumentViewModel(QObject):
+    """
+    Document viewmodel.
+
+    Signals:
+        surfaces_changed (Signal()): Emitted when a surface is changed.
+        document_type_changed (Signal(str)): Emitted when the document type is changed.
+        current_page_index_changed (Signal(int)): Emitted when the current page index is changed.
+        file_path_changed (Signal(object)): Emitted when the file path is changed.
+        dirty_changed (Signal(bool)): Emitted when the dirty state is changed.
+        selected_zone_index_changed (Signal(object)): Emitted when the selected zone index is changed.
+    """
     surfaces_changed = Signal()
     document_type_changed = Signal(str)
     current_page_index_changed = Signal(int)
@@ -17,6 +28,11 @@ class DocumentViewModel(QObject):
     selected_zone_index_changed = Signal(object)
 
     def __init__(self, parent: QObject | None = None) -> None:
+        """
+        Initializer.
+
+        :param parent: Parent QObject.
+        """
         super().__init__(parent)
         self._surfaces: tuple[SurfaceViewModel, ...] = ()
         self._document_type: DocumentType = "TEI"

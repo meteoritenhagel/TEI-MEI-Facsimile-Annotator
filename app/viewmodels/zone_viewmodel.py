@@ -4,6 +4,12 @@ from PySide6.QtCore import QObject, Signal
 
 
 class ZoneViewModel(QObject):
+    """
+    Zone viewmodel.
+
+    Signals:
+        rect_changed (Signal(float, float, float, float)): Emitted when the zone rectangle coordinates are changed.
+    """
     rect_changed = Signal(float, float, float, float)
 
     def __init__(

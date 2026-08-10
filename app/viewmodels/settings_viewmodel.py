@@ -7,6 +7,14 @@ from app.models.settings import float_range, int_range
 
 
 class SettingsViewModel(QObject):
+    """
+    Settings viewmodel.
+
+    Signals:
+        qt_window_settings_changed (Signal()): Emitted when a Qt window setting was changed.
+        image_settings_changed (Signal()): Emitted when an image setting was changed.
+        display_settings_changed (Signal()): Emitted when a display setting was changed.
+    """
     qt_window_settings_changed = Signal()
     image_settings_changed = Signal()
     display_settings_changed = Signal()
@@ -37,6 +45,9 @@ class SettingsViewModel(QObject):
 
         parent: QObject | None = None,
     ) -> None:
+        """
+        Initializer.
+        """
         super().__init__(parent)
 
         self._geometry = geometry

@@ -8,5 +8,12 @@ from app.viewmodels.settings_viewmodel import SettingsViewModel
 
 @dataclass
 class AppState:
+    """
+    Holds the global application state.
+
+    Properties:
+        document (DocumentViewModel): Document viewmodel.
+        settings (SettingsViewModel): Settings viewmodel.
+    """
     document: DocumentViewModel = field(default_factory=DocumentViewModel)
     settings: SettingsViewModel = field(default_factory=SettingsViewModel)

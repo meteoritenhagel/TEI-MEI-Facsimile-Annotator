@@ -10,29 +10,61 @@ from app.models.document import Document, DocumentType, Surface, Zone
 
 
 class DocumentRepository:
-    def load(self, path: Path) -> Document:
+    """
+    Repository for loading/saving documents from/to the file system.
+
+    Methods:
+        load (Path): Loads the serialized document data from the file system into the Document model.
+        save (Path): Saves the Document model data into a serialized file on the file system.
+
+    Private Methods:
+        _surface_from_dict (dict[str, Any]): Creates a Surface model from the serialized document data.
+        _document_type (object): Checks the document type for validity and returns it.
+    """
+    @classmethod
+    def load(cls, path: Path) -> Document:
+        """
+        Loads the serialized document data from the file system into the Document model.
+
+        :param path: Path to load from.
+        :return: Document model.
+        """
         data = msgpack.unpackb(path.read_bytes(), raw=False)
-        surfaces = tuple(self._surface_from_dict(item) for item in data["surfaces"])
+        surfaces = tuple(cls._surface_from_dict(item) for item in data["surfaces"])
         return Document(
             surfaces=surfaces,
-            document_type=self._document_type(data["document_type"]),
+            document_type=cls._document_type(data["document_type"]),
             current_page_index=int(data["current_page_index"]),
         )
 
-    def save(self, path: Path, doc: Document) -> None:
+    @classmethod
+    def save(cls, path: Path, doc: Document) -> None:
+        """
+        Saves the serialized document data from the file system into the file system into the Document model.
+
+        :param path: Path to save to.
+        :param doc: Document to save.
+        """
         payload = asdict(doc)
         packed = msgpack.packb(payload, use_bin_type=True)
         tmp_path = path.with_name(f"{path.name}.tmp")
         tmp_path.write_bytes(packed)
         tmp_path.replace(path)
 
-    def _surface_from_dict(self, data: dict[str, Any]) -> Surface:
+    @classmethod
+    def _surface_from_dict(cls, data: dict[str, Any]) -> Surface:
+        """
+        Creates a Surface model from the serialized document data.
+
+        :param data: Serialized surface data.
+        :return: Surface model.
+        """
         zones = tuple(
             Zone(
-                ulx=float(zone["ulx"]),
-                uly=float(zone["uly"]),
-                lrx=float(zone["lrx"]),
-                lry=float(zone["lry"]),
+                ulx=int(zone["ulx"]),
+                uly=int(zone["uly"]),
+                lrx=int(zone["lrx"]),
+                lry=int(zone["lry"]),
             )
             for zone in data["zones"]
         )
@@ -42,7 +74,15 @@ class DocumentRepository:
             zones=zones,
         )
 
-    def _document_type(self, value: object) -> DocumentType:
+    @classmethod
+    def _document_type(cls, value: object) -> DocumentType:
+        """
+        Checks the document type for validity and returns it.
+
+        :param value: Document type value.
+        :raise ValueError: If document type is invalid.
+        :return: Document type value if valid.
+        """
         if value not in ("TEI", "MEI"):
             raise ValueError(f"Unsupported document type: {value!r}")
         return value

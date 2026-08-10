@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import override
 
 from PySide6.QtCore import Qt, Signal, QEvent, QTimer
 from PySide6.QtGui import QIcon
@@ -36,6 +37,12 @@ from app.viewmodels.zone_viewmodel import ZoneViewModel
 
 
 class MainWindow(QMainWindow):
+    """
+    Initializes main window view.
+
+    Methods:
+        closeEvent (QEvent): Handles the window close event. Saves settings before closing.
+    """
     def __init__(
         self,
         document_vm: DocumentViewModel,
@@ -45,6 +52,16 @@ class MainWindow(QMainWindow):
         xml_id_service: XmlIdService,
         parent=None,
     ) -> None:
+        """
+        Initializes main window view.
+
+        :param document_vm: Document viewmodel.
+        :param settings_vm: Settings viewmodel.
+        :param document_service: Document service class.
+        :param settings_service: Settings service class.
+        :param xml_id_service: XML ID service class.
+        :param parent: Parent QObject.
+        """
         super().__init__(parent)
         self._document_vm = document_vm
         self._settings_vm = settings_vm
@@ -101,6 +118,20 @@ class MainWindow(QMainWindow):
         self._refresh_all()
 
         self._restore_window_settings()
+    
+    @override
+    def closeEvent(self, event: QEvent) -> None:
+        """
+        Handles the window close event. Saves settings before closing.
+        """
+        self._save_window_settings()
+        try:
+            self._settings_service.save_settings()
+        except Exception as e:
+            # Optionally show a warning or log the error
+            QMessageBox.warning(self, "Save Settings Failed", f"Failed to save settings: {e}")
+        # Accept the event to proceed with closing
+        event.accept()
 
     def _build_menu(self) -> None:
         # --- File Menu ---
@@ -293,7 +324,7 @@ class MainWindow(QMainWindow):
         )
         if not filenames:
             return
-        self._document_service.add_surface_from_images([Path(filename) for filename in filenames])
+        self._document_service.add_surfaces_from_images([Path(filename) for filename in filenames])
 
     def _remove_current_page(self) -> None:
         if not self._document_vm.surfaces:
@@ -497,16 +528,3 @@ class MainWindow(QMainWindow):
     def _open_settings_dialog(self):
         dialog_change_settings = DialogChangeSettings(self._settings_service, self._settings_vm)
         dialog_change_settings.exec()
-
-    def closeEvent(self, event: QEvent) -> None:
-        """
-        Handles the window close event. Saves settings before closing.
-        """
-        self._save_window_settings()
-        try:
-            self._settings_service.save_settings()
-        except Exception as e:
-            # Optionally show a warning or log the error
-            QMessageBox.warning(self, "Save Settings Failed", f"Failed to save settings: {e}")
-        # Accept the event to proceed with closing
-        event.accept()

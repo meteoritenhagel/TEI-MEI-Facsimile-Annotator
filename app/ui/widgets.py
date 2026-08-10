@@ -1,3 +1,5 @@
+from typing import override
+
 from PySide6.QtCore import QEvent, QTimer, Signal, Qt
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import QLineEdit, QWidget, QLabel, QMenu, QToolTip, QColorDialog, QSlider, QVBoxLayout, \
@@ -10,11 +12,11 @@ class FocusableLineEdit(QLineEdit):
     """
     FocusableLineEdit endows a QLineEdit with a signal when the widget gains focus.
 
-    Attributes:
+    Properties:
         inFocus (Signal): Signal that is emitted when the widget gains focus.
 
     Methods:
-        focusInEvent (QEvent): Override. Is called when the widget gains focus.
+        focusInEvent (QEvent): Is called when the widget gains focus.
     """
     inFocus = Signal()
 
@@ -24,9 +26,10 @@ class FocusableLineEdit(QLineEdit):
         """
         super(FocusableLineEdit, self).__init__(*args, **kwargs)
 
+    @override
     def focusInEvent(self, event: QEvent):
         """
-        Override. Is called when the widget gains focus.
+        Is called when the widget gains focus.
         :param event: The event that is passed.
         """
         self.inFocus.emit()
@@ -36,11 +39,11 @@ class ClickableLabel(QLabel):
     """
     ClickableLabel endows a QLabel with a signal when the widget is clicked.
 
-    Attributes:
+    Properties:
         clicked (Signal): Signal that is emitted when the widget is clicked.
 
     Methods:
-        mousePressEvent (QEvent): Override. Is called when the widget is clicked.
+        mousePressEvent (QEvent): Is called when the widget is clicked.
 
     """
     clicked = Signal()
@@ -51,9 +54,10 @@ class ClickableLabel(QLabel):
         """
         super(ClickableLabel, self).__init__(*args, **kwargs)
 
+    @override
     def mousePressEvent(self, event: QEvent):
         """
-        Override. Is called when the widget is clicked.
+        Is called when the widget is clicked.
         :param event: The event that is passed.
         """
         if event.button() == Qt.MouseButton.LeftButton:
@@ -65,8 +69,8 @@ class ToolTipMenu(QMenu):
     ToolTipMenu endows a QMenu with tooltip support.
 
     Methods:
-        mouseMoveEvent (QEvent): Override. Is called when the mouse is moved.
-        leaveEvent (QEvent): Override. Is called when the widget leaves.
+        mouseMoveEvent (QEvent): Is called when the mouse is moved.
+        leaveEvent (QEvent): Is called when the widget leaves.
 
     Private Methods:
          _show_tooltip: Displays the tooltip.
@@ -85,9 +89,10 @@ class ToolTipMenu(QMenu):
         self._current_pos = None
         self._tooltip_delay = tooltip_delay
 
+    @override
     def mouseMoveEvent(self, event):
         """
-        Override. Is called when the mouse is moved.
+        Is called when the mouse is moved.
         :param event: The event that is passed.
         """
         action = self.actionAt(event.pos())
@@ -100,9 +105,10 @@ class ToolTipMenu(QMenu):
                 self._tooltip_timer.start(self._tooltip_delay)
         super().mouseMoveEvent(event)
 
+    @override
     def leaveEvent(self, event):
         """
-        Override. Is called when the widget leaves.
+        Is called when the widget leaves.
         :param event: The event that is passed.
         """
         self._tooltip_timer.stop()
@@ -124,63 +130,70 @@ class FloatSlider(QSlider):
     FloatSlider endows a QSlider with float value functionality.
 
     Methods:
-        minimum: Override. Returns the slider's minimum value.
-        setMinimum (float): Override. Sets the slider's minimum value.
-        maximum: Override. Returns the slider's maximum value.
-        setMaximum (float): Override. Sets the slider's maximum value.
-        value: Override. Returns the slider's current value.
-        setValue (float): Override. Sets the slider's current value.
-        setTickInverval (float): Override. Sets the slider's tick interval.
+        minimum: Returns the slider's minimum value.
+        setMinimum (float): Sets the slider's minimum value.
+        maximum: Returns the slider's maximum value.
+        setMaximum (float): Sets the slider's maximum value.
+        value: Returns the slider's current value.
+        setValue (float): Sets the slider's current value.
+        setTickInverval (float): Sets the slider's tick interval.
     """
     def __init__(self, *args, resolution=100, **kwargs):
         super().__init__(*args, **kwargs)
         self._resolution = resolution
 
+    @override
     def minimum(self) -> float:
         """
-        Override. Returns the slider's minimum value.
+        Returns the slider's minimum value.
         :return: The slider's minimum value.
         """
         return super().minimum() / self._resolution
 
+    @override
     def setMinimum(self, minimum: float):
         """
-        Override. Sets the slider's minimum value.
+        Sets the slider's minimum value.
         :param minimum: New minimum value.
         """
         super().setMinimum(int(minimum * self._resolution))
 
+    @override
     def maximum(self) -> float:
         """
-        Override. Returns the slider's maximum value.
+        Returns the slider's maximum value.
         :return: The slider's maximum value.
         """
         return super().maximum() / self._resolution
 
+    @override
     def setMaximum(self, maximum: float):
         """
-        Override. Sets the slider's maximum value.
+        Sets the slider's maximum value.
         :param maximum: New maximum value.
         """
         super().setMaximum(int(maximum * self._resolution))
 
+    @override
     def value(self) -> float:
         """
-        Override. Returns the slider's current value.
+        Returns the slider's current value.
         :return: The slider's current value.
         """
         return float(super().value() / self._resolution)
 
+    @override
     def setValue(self, value: float):
         """
-        Override. Sets the slider's current value.
+        Sets the slider's current value.
         :param value: New current value.
         """
         super().setValue(int(value * self._resolution))
 
+    @override
     def setTickInterval(self, interval: float):
         """
-        Override. Sets the slider's tick interval.
+        Sets the slider's tick interval.
         :param interval: New tick interval.
         """
         super().setTickInterval(int(interval * self._resolution))

@@ -37,19 +37,41 @@ The app uses MVVM adapted for Qt Widgets, with service and repository layers:
 Widgets -> Services -> ViewModels -> Qt signals -> Widgets
 ```
 
-Widgets never mutate viewmodels directly. They call service methods in response to user actions, then update from
-viewmodel or service signals. Services are the only layer that writes observable state.
-
-Models in `app/models/document.py` are frozen dataclasses for persisted content only: `Document`, `Surface`, and `Zone`.
-They have no Qt imports and no derived fields.
-
-Viewmodels in `app/viewmodels/` represent the whole observable application state, including transient UI state such as
-`selected_zone_index`, `dirty`, and `file_path`. Viewmodels never store model instances as fields; they contain other
-viewmodels (`DocumentViewModel` -> `SurfaceViewModel` -> `ZoneViewModel`).
-
-Model/viewmodel conversion lives in `app/services/mapping_service.py` and is called only by services. Mapping functions
-touch only persistable fields. Transient viewmodel fields, including `selected_zone_index`, are not persisted and are
-not modified by mapping.
+- Repositories (`app/repositories/`) encapsulate persistance mechanisms, most notably writing/reading to/from the file
+  system or to Qt settings objects.
+  - `app/repositories/document_repository.py`: Reading/loading documents from/to file system.
+  - `app/repositories/settings_repository.py`: Reading/loading settings from/to Qt settings.
+- Models (`app/models/`) are frozen dataclasses for persisted content only. For example, for document content, the file
+  `app/models/document.py` contains the dataclasses `Document`, `Surface`, and `Zone`. Models are not meant to hold
+  live application states (see viewmodels), data manipulation methods (see services), or widgets (see views).
+  Models exclusively contain the data that is serialized/deserialized by the repositories.
+  - `app/models/document.py`: The state of a persisted document file. Contains surfaces, zones, etc.
+  - `app/models/settings.py`: The state of persisted settings. Contains image settings, display options, etc.
+- Viewmodels (`app/viewmodels/`) hold the whole observable application state, including transient UI state such as
+  `selected_zone_index`, `dirty`, and `file_path`. Viewmodels never store model instances as fields; they contain other
+  viewmodels (`DocumentViewModel` -> `SurfaceViewModel` -> `ZoneViewModel`) instead. They are usually manipulated by
+  service methods (see services), or especially in the case of data bindings, are directly modified by widget
+  interactions. Viewmodels should fire signals on changes, so that the widgets (see views) can adapt accordingly.
+  - `app/viewmodels/document_viewmodel.py`: Holds the live application state regarding document contents.
+  - `app/viewmodels/settings_viewmodel.py`: Hold the live application state regarding settings.
+  - `app/viewmodels/surface_viewmodel.py`: Holds the live application state regarding surface contents.
+  - `app/viewmodels/zone_viewmodel.py`: Holds the live application state regarding zone contents.
+- Services (`app/services/`) 
+  - `app/services/document_service.py`: Document manipulation, such as adding/removal of surfaces/zones, etc. 
+  - `app/services/mapping_service.py`: Model/viewmodel conversion, only called by services. Mapping functions touch only
+    persistable fields. Transient viewmodel fields, such as `selected_zone_index`, are not persisted and are not
+    modified by mapping.
+  - `app/services/settings_service.py`: Settings manipulation, e.g., loading default settings, creating temporary
+    settings viewmodel objects, loading from temporary settings viewmodels, etc.
+  - `app/services/xml_id_service.py`: Generates surface and zone xml:ids.
+- Views (`app/ui/`) are the layer that is closest to the user of the software. They consist of windows, dialogs and
+  widgets that are used to display the application state (see viewmodels) to the user or allow its modification by the
+  user. Complex validation checks or application state modifications are meant to be contained in the services, but 
+  simple changes and data bindings may directly access the viewmodel layer.
+  - `app/ui/dialog_change_settings.py`: The dialog for editing application settings.
+  - `app/ui/facsimile_canvas.py`: The canvas widget for displaying and interacting with the image, drawing zones, etc.
+  - `app/ui/main_window.py`: The application's main window.
+  - `app/ui/widgets.py`: Contains custom widgets, such as a widget for picking and displaying colors.
 
 ### Signal Scope
 
@@ -63,8 +85,8 @@ This keeps the UI from rebuilding unrelated page and zone objects when only one 
 
 ### Persistence
 
-`DocumentRepository` is stateless. It loads and saves explicit paths only, and it does not drive UI state. Saves are
-atomic: data is packed with `msgpack`, written to a sibling `.tmp` file, then replaced into place.
+Repositories are stateless. `DocumentRepository` loads and saves explicit paths only, and it does not drive UI state.
+Saves are atomic: data is packed with `msgpack`, written to a sibling `.tmp` file, then replaced into place.
 
 ### XML IDs
 

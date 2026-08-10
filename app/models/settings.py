@@ -9,9 +9,14 @@ from PySide6.QtGui import QColor
 
 
 class int_range(int):
-    """An int subclass parameterized with inclusive [low, high] bounds.
+    """
+    An int subclass parameterized with inclusive [low, high] bounds.
 
     Usage: int_range[0, 255]  -> a class, subclass of int, with .low/.high set.
+
+    Properties:
+        low (int): The lower bound of the range.
+        high (int): The upper bound of the range.
     """
     low: int
     high: int
@@ -44,9 +49,15 @@ class int_range(int):
 
 
 class float_range(float):
-    """A float subclass parameterized with inclusive [low, high] bounds and a step value.
+    """
+    A float subclass parameterized with inclusive [low, high] bounds and a step value.
 
     Usage: float_range[0., 2., 0.5]  -> a class, subclass of float, with .low/.high/.step set.
+
+    Properties:
+        low (float): The lower bound of the range.
+        high (float): The upper bound of the range.
+        step (float): The step value of the range.
     """
     low: float
     high: float
@@ -81,17 +92,29 @@ class float_range(float):
         return super().__new__(cls, value)
 
 
-DocumentType = Literal["TEI", "MEI"]
-
-
 @dataclass(frozen=True)
 class QtWindowSettings:
+    """
+    Qt window layout settings.
+
+    Properties:
+        geometry (QByteArray): Main window geometry.
+        windowState (QByteArray): Window state (minimized/maximized/etc.).
+    """
     geometry: QByteArray = dataclasses.field(default_factory=QByteArray)
     windowState: QByteArray = dataclasses.field(default_factory=QByteArray)
 
 
 @dataclass(frozen=True)
 class ImageSettings:
+    """
+    Image display settings.
+
+    Properties:
+        image_brightness (float_range): Brightness of the image.
+        image_contrast (float_range): Contrast of the image.
+        image_saturation (float_range): Saturation of the image.
+    """
     image_brightness: float_range[0., 2., 0.1] = 1.0
     image_contrast: float_range[0., 2., 0.1] = 1.0
     image_saturation: float_range[0., 2., 0.1] = 1.0
@@ -99,21 +122,42 @@ class ImageSettings:
 
 @dataclass(frozen=True)
 class DisplaySettings:
+    """
+    Object display settings:
+
+    Properties:
+        canvas_background_color (QColor): Default background color of the canvas.
+
+        create_zone_border_thickness (float_range): When creating a new zone, the thickness of the border.
+        create_zone_border_color (QColor): When creating a new zone, the color of the border.
+        create_zone_fill_color (QColor): When creating a new zone, the color of the fill.
+        create_zone_fill_opacity (int_range): When creating a new zone, the opacity of the fill.
+
+        unselected_zone_border_thickness (float_range): The thickness of the border of an unselected zone.
+        unselected_zone_border_color (QColor): The color of the border of an unselected zone.
+        unselected_zone_fill_color (QColor): The color of the fill of an unselected zone.
+        unselected_zone_fill_opacity (int_range): The opacity of the fill of an unselected zone.
+
+        selected_zone_border_thickness (float_range): The thickness of the border of a selected zone.
+        selected_zone_border_color (QColor): The color of the border of a selected zone.
+        selected_zone_fill_color (QColor): The color of the fill of a selected zone.
+        selected_zone_fill_opacity (int_range): The opacity of the fill of a selected zone.
+    """
     canvas_background_color: QColor = field(default_factory=lambda: QColor("#e6e6e6"))
 
     create_zone_border_thickness: float_range[0.5, 5, 0.5] = 1.5
     create_zone_border_color: QColor = field(default_factory=lambda: QColor("#247a42"))
-    create_zone_fill_color: QColor = field(default_factory=lambda: QColor(84, 180, 100))
+    create_zone_fill_color: QColor = field(default_factory=lambda: QColor("#54b464"))
     create_zone_fill_opacity: int_range[0, 255] = 35
 
     unselected_zone_border_thickness: float_range[0.5, 5, 0.5] = 1.5
     unselected_zone_border_color: QColor = field(default_factory=lambda: QColor("#d24d1f"))
-    unselected_zone_fill_color: QColor = field(default_factory=lambda: QColor(255, 224, 102))
+    unselected_zone_fill_color: QColor = field(default_factory=lambda: QColor("#ffe066"))
     unselected_zone_fill_opacity: int_range[0, 255] = 40
 
     selected_zone_border_thickness: float_range[0.5, 5, 0.5] = 3.0
     selected_zone_border_color: QColor = field(default_factory=lambda: QColor("#0b63ce"))
-    selected_zone_fill_color: QColor = field(default_factory=lambda: QColor(255, 224, 102))
+    selected_zone_fill_color: QColor = field(default_factory=lambda: QColor("#ffe066"))
     selected_zone_fill_opacity: int_range[0, 255] = 85
 
 

@@ -1,4 +1,5 @@
 from functools import partial
+from typing import override
 
 from PySide6.QtCore import Signal
 from PySide6.QtGui import QIcon, QColor
@@ -17,19 +18,14 @@ class DialogChangeSettings(QDialog):
     This dialog is for modifying the application settings.
 
     Methods:
-        reject: Override.
+        reject: Rejects the dialog, i.e., the previous settings state is restored.
 
     Private Methods:
-        _setupUI: Setups the dialog UI widgets.
-
-    Private Class Methods:
-        _create_slider (str, QLayout, bool): Create a LabeledSlider widget with a label indicating its purpose.
+        _build_layout: Build the dialog UI widgets.
+        _create_slider (str, QLayout): Create a LabeledSlider widget with a label indicating its purpose.
         _create_color_button (str, QLayout): Create a ColorButton widget with a label indicating its purpose.
-        _widget_get_value (Settings): Extracts the value of the widget that is registered with a Settings.
-        _widget_set_value (Settings, object): Sets a new value for the widget that is registered with a Settings.
-        _load_settings (dict[Settings, object] | None): Loads the settings from a dictionary or from the global
-                                                           application settings.
-        _save_settings: Collects the settings from the dialog in a dictionary and accepts the dialog.
+        _update_setting_from_widget (str, QWidget): Updates a dialog widget to display the corresponding settings state.
+        _update_widgets_from_settings: Update the dialog widgets to display the current settings state.
         _restore_default: Loads the default application settings and applies them to the widgets.
     """
 
@@ -129,6 +125,14 @@ class DialogChangeSettings(QDialog):
         self._build_layout()
         self._update_widgets_from_settings()
 
+    @override
+    def reject(self):
+        """
+        Rejects the dialog, i.e., the previous settings state is restored.
+        """
+        self._settings_service.apply_temporary_settings_viewmodel(self._original_settings)
+        super().accept()
+
     def _build_layout(self):
         """
         Build the dialog UI widgets.
@@ -225,7 +229,14 @@ class DialogChangeSettings(QDialog):
         parent_layout.addLayout(layout)
         return color_button
 
-    def _update_setting_from_widget(self, prop, widget):
+    def _update_setting_from_widget(self, prop: str, widget: QWidget):
+        """
+        Updates a dialog widget to display the corresponding settings state.
+
+        :param prop: Settings property name.
+        :param widget: Corresponding widget.
+        :return:
+        """
         # If a settings of a new type is added, add here how to set the settings value.
         if isinstance(widget, LabeledSlider):
             setattr(self._global_settings, prop, widget.value())
@@ -237,6 +248,9 @@ class DialogChangeSettings(QDialog):
             raise NotImplementedError(f"Widget type {type(widget)} is not supported.")
 
     def _update_widgets_from_settings(self):
+        """
+        Update the dialog widgets to display the current settings state.
+        """
         # If a settings of a new type is added, add here how to load the settings value from it.
         for prop, widget in self._property_to_widget.items():
             value = getattr(self._global_settings, prop)
@@ -255,10 +269,3 @@ class DialogChangeSettings(QDialog):
         """
         self._settings_service.load_settings_to_temporary_viewmodel(self._global_settings, load_default_values=True)
         self._update_widgets_from_settings()
-
-    def reject(self):
-        """
-        Rejects the dialog, i.e., the previous settings state is restored.
-        """
-        self._settings_service.apply_temporary_settings_viewmodel(self._original_settings)
-        super().accept()

@@ -6,6 +6,14 @@ from app.viewmodels.zone_viewmodel import ZoneViewModel
 
 
 class SurfaceViewModel(QObject):
+    """
+    Surface viewmodel.
+
+    Signals:
+        image_changed (Signal(bytes)): Emitted when the image is changed.
+        image_path_changed (Signal(str)): Emitted when the image path is changed.
+        zones_changed (Signal()): Emitted when a zone is changed.
+    """
     image_changed = Signal(bytes)
     image_path_changed = Signal(str)
     zones_changed = Signal()
@@ -17,6 +25,9 @@ class SurfaceViewModel(QObject):
         zones: tuple[ZoneViewModel, ...] = (),
         parent: QObject | None = None,
     ) -> None:
+        """
+        Initializer.
+        """
         super().__init__(parent)
         self._image = image
         self._image_path = image_path
