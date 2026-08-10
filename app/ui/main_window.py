@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
     QTableWidgetItem,
     QToolBar,
     QVBoxLayout,
-    QWidget, QLineEdit,
+    QWidget, QLineEdit, QDockWidget,
 )
 
 from app.constants import APPLICATION_NAME, DOCUMENT_FILE_EXTENSION
@@ -100,7 +100,8 @@ class MainWindow(QMainWindow):
         self._page_label.returnPressed.connect(self._page_text_press_enter)
 
         self._status_label = QLabel("", self)
-        self._image_label = QLabel("No page image", self)
+        self._image_label = QLineEdit("No page image", self)
+        self._image_label.setReadOnly(True)
         self._delete_zone_button = QPushButton("Delete Zone", self)
         self._delete_zone_button.clicked.connect(self._delete_selected_zone)
 
@@ -203,7 +204,15 @@ class MainWindow(QMainWindow):
         side_layout.addLayout(coordinate_layout)
         side_layout.addWidget(self._delete_zone_button)
         side_panel.setMinimumWidth(340)
-        main_layout.addWidget(side_panel)
+
+        dock = QDockWidget("Page Zones", self)
+        dock.setWidget(side_panel)
+        dock.setFeatures(
+            QDockWidget.DockWidgetFeature.DockWidgetMovable |
+            QDockWidget.DockWidgetFeature.DockWidgetFloatable
+        )
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, dock)
+
         self.setCentralWidget(root)
         self.resize(1280, 850)
 
