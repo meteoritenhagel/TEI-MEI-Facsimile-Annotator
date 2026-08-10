@@ -16,7 +16,8 @@ class SettingsService(QObject):
     Settings service is a service class for manipulation of SettingsViewModel instances.
 
     Properties:
-        SETTINGS_KEYS (list[str]): All unique settings identifiers are registered here.
+        SETTINGS_CLASSES (tuple[object, ...]): All settings classes are registered here.
+        settings_keys (list[str]): Contains all unique settings identifiers.
         settings_types (dict[str, type]): Maps each unique settings identifier to its value type.
         settings_defaults (dict[str, object]): Maps each unique settings identifier to its default value.
 
@@ -37,27 +38,12 @@ class SettingsService(QObject):
                 settings repository.
     """
 
-    # Register new settings here
-    SETTINGS_KEYS: list[str] = [
-        "geometry",
-        "windowState",
-        "image_brightness",
-        "image_contrast",
-        "image_saturation",
-        "canvas_background_color",
-        "create_zone_border_thickness",
-        "create_zone_border_color",
-        "create_zone_fill_color",
-        "create_zone_fill_opacity",
-        "unselected_zone_border_thickness",
-        "unselected_zone_border_color",
-        "unselected_zone_fill_color",
-        "unselected_zone_fill_opacity",
-        "selected_zone_border_thickness",
-        "selected_zone_border_color",
-        "selected_zone_fill_color",
-        "selected_zone_fill_opacity",
-    ]
+    # Register new settings classes here
+    SETTINGS_CLASSES: tuple[object, ...] = (
+        QtWindowSettings,
+        ImageSettings,
+        DisplaySettings
+    )
 
     def __init__(
         self,
@@ -69,21 +55,22 @@ class SettingsService(QObject):
         self._repository = repository
         self._settings_vm = settings_viewmodel
 
-        settings_classes = (
-            QtWindowSettings,
-            ImageSettings,
-            DisplaySettings
-        )
+        # Set settings keys
+        self.settings_keys = [
+            field.name
+            for cls in self.SETTINGS_CLASSES
+            for field in dataclasses.fields(cls)
+        ]
 
         # Set settings types
         settings_types = {}
-        for cls in settings_classes:
+        for cls in self.SETTINGS_CLASSES:
             settings_types.update(typing.get_type_hints(cls))
         self.settings_types = settings_types
 
         # Set settings default values
         settings_defaults = {}
-        for cls in settings_classes:
+        for cls in self.SETTINGS_CLASSES:
             settings_defaults.update(dataclasses.asdict(cls()))
         self.settings_defaults = settings_defaults
 
@@ -98,7 +85,7 @@ class SettingsService(QObject):
         """
         Load all settings from the current class instance into the settings repository.
         """
-        for key in self.SETTINGS_KEYS:
+        for key in self.settings_keys:
             self._save_setting(key, getattr(self._settings_vm, key))
 
     def create_temporary_settings_viewmodel(self) -> SettingsViewModel:
@@ -113,7 +100,7 @@ class SettingsService(QObject):
         Applies the state of a provided SettingsViewModel to the current class instance.
         :param temporary_settings_viewmodel: SettingsViewModel instance from which the state should be applied.
         """
-        for key in self.SETTINGS_KEYS:
+        for key in self.settings_keys:
             setattr(self._settings_vm, key, getattr(temporary_settings_viewmodel, key))
 
     def load_settings_to_temporary_viewmodel(
@@ -124,7 +111,7 @@ class SettingsService(QObject):
         :param settings_vm: SettingsViewModel instance to which the state should be applied.
         :param load_default_values: If True, load the default values, otherwise, load the current instance's values.
         """
-        for key in self.SETTINGS_KEYS:
+        for key in self.settings_keys:
             value = self._load_setting(key, load_default_values)
             setattr(settings_vm, key, value)
 
