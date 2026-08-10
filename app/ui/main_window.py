@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import override
 
 from PySide6.QtCore import Qt, Signal, QEvent, QTimer
-from PySide6.QtGui import QIcon
+from PySide6.QtGui import QIcon, QKeyEvent
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QComboBox,
@@ -42,6 +42,7 @@ class MainWindow(QMainWindow):
     Initializes main window view.
 
     Methods:
+        keyPressEvent (QKeyEvent): Event that is triggered when a key is pressed.
         closeEvent (QEvent): Handles the window close event. Saves settings before closing.
     """
     def __init__(
@@ -120,6 +121,16 @@ class MainWindow(QMainWindow):
         self._refresh_all()
 
         self._restore_window_settings()
+
+    @override
+    def keyPressEvent(self, event: QKeyEvent) -> None:
+        if event.key() == Qt.Key.Key_Delete:
+            # Only delete if a zone is selected and the table or canvas has focus
+            if (self._zone_table.hasFocus() or self._canvas.hasFocus()) and self._delete_zone_button.isEnabled():
+                self._delete_selected_zone()
+                event.accept()
+                return
+        super().keyPressEvent(event)
     
     @override
     def closeEvent(self, event: QEvent) -> None:

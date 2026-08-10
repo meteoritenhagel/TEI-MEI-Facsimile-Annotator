@@ -15,6 +15,29 @@ pip install -e .
 python -m app.main
 ```
 
+## How to Use
+
+1. After starting the application, go to `File > Add Page Images...` to add pages to the document. Note that when
+   adding multiple pages at once, the ordering is according to the selection in the file select dialog. If the order
+   is wrong, add the images one by one.
+2. Navigate the page canvas:
+   - When holding `Ctrl`, the mouse wheel results in zooming in or out the page, and you can drag the image around
+     while left-clicking to change the panning.
+   - Create a new zone by drawing a rectangle using right-click to define one corner and drop the click at the other
+     corner. The new zone is registered in the zone viewer on the right. The zone can also be dragged around by
+     left-clicking it, changing its position.
+   - Zones can be removed by selecting a zone (using left click or in the zone viewer on the right) and either pressing
+     the `DEL` key or clicking the button `Delete Zone` on the right.
+3. Navigate through the pages using the toolbar buttons `Previous Page` and `Next Page`. Individual pages can be
+   removed and added using the `Add Pages` and `Remove Page` buttons.
+4. Change your document type in the `Type:` selector to either `TEI` or `MEI`. This will affect the format the
+   XML is exported as.
+5. When wanting to pause and resume later, go to `File > Save` and close the application. Using `File > Open...`,
+   the work can be continued at the same position where stopped last.
+6. When all zones are added correctly on each page, click `Export TEI/MEI` to export the document in the correct
+   format. This generates a valid minimal TEI or MEI XML document endowed with all facsimile/surface/zone data and
+   milestone markers (such as `<pb/>`, `<lb/>` or `<sb/>`).
+
 ## Developer Information
 
 ### Install Dependencies (Including Dev Dependencies)
