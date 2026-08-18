@@ -137,6 +137,28 @@ class MainWindow(QMainWindow):
         """
         Handles the window close event. Saves settings before closing.
         """
+        # Ask the user if they really want to close if there are unsaved changes.
+        if self._document_vm.dirty:
+            msg_box = QMessageBox(self)
+            msg_box.setIcon(QMessageBox.Icon.Warning)
+            msg_box.setWindowTitle("Unsaved Changes")
+            msg_box.setText("You have unsaved changes. What would you like to do?")
+            save_btn = msg_box.addButton("Save and Close", QMessageBox.ButtonRole.AcceptRole)
+            save_btn.setIcon(QIcon.fromTheme(QIcon.ThemeIcon.DocumentSave))
+            close_btn = msg_box.addButton("Close without Saving", QMessageBox.ButtonRole.DestructiveRole)
+            close_btn.setIcon(QIcon.fromTheme(QIcon.ThemeIcon.EditDelete))
+            cancel_btn = msg_box.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
+            cancel_btn.setIcon(QIcon.fromTheme(QIcon.ThemeIcon.EditClear))
+            msg_box.setDefaultButton(cancel_btn)  # Make "Cancel" the default
+            msg_box.exec()
+
+            clicked = msg_box.clickedButton()
+            if clicked == cancel_btn:  # cancel
+                event.ignore()
+                return
+            elif clicked == save_btn:
+                self._save_document()
+
         self._save_window_settings()
         try:
             self._settings_service.save_settings()
