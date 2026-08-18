@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
 
 from app.models.document import Zone
 from app.services.document_service import DocumentService
+from app.services.image_service import apply_image_properties
 from app.viewmodels.document_viewmodel import DocumentViewModel
 from app.viewmodels.settings_viewmodel import SettingsViewModel
 from app.viewmodels.surface_viewmodel import SurfaceViewModel
@@ -137,6 +138,7 @@ class FacsimileCanvas(QGraphicsView):
         self._current_surface = surface
         surface.image_changed.connect(self._load_image)
         surface.image_path_changed.connect(self._load_image)
+        self._settings_vm.image_settings_changed.connect(self._load_image)
         surface.zones_changed.connect(self._rebuild_zones)
         self._load_image()
         self._rebuild_zones()
@@ -455,7 +457,14 @@ class FacsimileCanvas(QGraphicsView):
             return
         pixmap = QPixmap()
         if surface.image:
-            pixmap.loadFromData(surface.image)
+            img_data = apply_image_properties(
+                surface.image,
+                self._settings_vm.image_brightness,
+                self._settings_vm.image_contrast,
+                self._settings_vm.image_saturation
+            )
+
+            pixmap.loadFromData(img_data)
         if pixmap.isNull():
             self._scene.setSceneRect(0, 0, 900, 600)
             self._image_rect = QRectF()

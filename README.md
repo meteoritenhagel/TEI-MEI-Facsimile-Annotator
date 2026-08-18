@@ -82,6 +82,7 @@ Widgets -> Services -> ViewModels -> Qt signals -> Widgets
   - `app/viewmodels/zone_viewmodel.py`: Holds the live application state regarding zone contents.
 - Services (`app/services/`) 
   - `app/services/document_service.py`: Document manipulation, such as adding/removal of surfaces/zones, etc. 
+  - `app/services/image_service.py`: Image manipulation, such as applying brightness/saturation/contrast.
   - `app/services/mapping_service.py`: Model/viewmodel conversion, only called by services. Mapping functions touch only
     persistable fields. Transient viewmodel fields, such as `selected_zone_index`, are not persisted and are not
     modified by mapping.

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from PySide6.QtCore import QObject, Signal, QByteArray
+from PySide6.QtCore import QObject, Signal, QByteArray, QTimer
 from PySide6.QtGui import QColor
 
+from app.constants import DEBOUNCE_INTERVAL_MS
 from app.models.settings import float_range, int_range
 
 
@@ -12,7 +13,7 @@ class SettingsViewModel(QObject):
 
     Signals:
         qt_window_settings_changed (Signal()): Emitted when a Qt window setting was changed.
-        image_settings_changed (Signal()): Emitted when an image setting was changed.
+        image_settings_changed (Signal()): Emitted (debounced) when an image setting was changed.
         display_settings_changed (Signal()): Emitted when a display setting was changed.
     """
     qt_window_settings_changed = Signal()
@@ -70,6 +71,18 @@ class SettingsViewModel(QObject):
         self._selected_zone_border_color = selected_zone_border_color
         self._selected_zone_fill_color = selected_zone_fill_color
         self._selected_zone_fill_opacity = selected_zone_fill_opacity
+
+        # Debounce timer for image settings
+        self._debounce_timer = QTimer(self)
+        self._debounce_timer.setSingleShot(True)
+        self._debounce_timer.setInterval(DEBOUNCE_INTERVAL_MS)
+        self._debounce_timer.timeout.connect(self._emit_image_settings_changed)
+
+    def _emit_image_settings_changed(self):
+        self.image_settings_changed.emit()
+
+    def _debounce_image_settings_changed(self):
+        self._debounce_timer.start()
 
     def copy(self) -> SettingsViewModel:
         def copy_color(c):
@@ -138,7 +151,7 @@ class SettingsViewModel(QObject):
     def image_brightness(self, value: float_range[0., 2., 0.1]) -> None:
         if self._image_brightness != value:
             self._image_brightness = value
-            self.image_settings_changed.emit()
+            self._debounce_image_settings_changed()
 
     @property
     def image_contrast(self) -> float_range[0., 2., 0.1]:
@@ -148,7 +161,7 @@ class SettingsViewModel(QObject):
     def image_contrast(self, value: float_range[0., 2., 0.1]) -> None:
         if self._image_contrast != value:
             self._image_contrast = value
-            self.image_settings_changed.emit()
+            self._debounce_image_settings_changed()
 
     @property
     def image_saturation(self) -> float_range[0., 2., 0.1]:
@@ -158,7 +171,7 @@ class SettingsViewModel(QObject):
     def image_saturation(self, value: float_range[0., 2., 0.1]) -> None:
         if self._image_saturation != value:
             self._image_saturation = value
-            self.image_settings_changed.emit()
+            self._debounce_image_settings_changed()
 
     # --- Display Settings ---
     @property

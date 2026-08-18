@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 uv.lock
-.egg-info
+*.egg-info/
 .idea
 *.png
+*.xml
