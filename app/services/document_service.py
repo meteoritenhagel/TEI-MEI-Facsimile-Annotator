@@ -8,16 +8,11 @@ from PySide6.QtCore import QObject, QRunnable, QThreadPool, Signal, Slot
 from app.models.document import Document, Surface, Zone
 from app.repositories.document_repository import DocumentRepository
 from app.repositories.text_repository import TextRepository
-from app.services.command_service import Command, AddZoneCommand, RemoveZoneCommand, UpdateZoneRectCommand
-from app.services.mapping_service import (
-    document_to_viewmodel,
-    surface_to_viewmodel,
-    viewmodel_to_document,
-    zone_to_viewmodel,
-)
+from app.services.command_service import Command, AddZoneCommand, RemoveZoneCommand, UpdateZoneRectCommand, \
+    SetDocumentTypeCommand, GoToPageCommand, AddSurfacesCommand, RemoveSurfaceCommand
+from app.services.mapping_service import document_to_viewmodel, viewmodel_to_document
 from app.services.xml_export_service import viewmodel_to_xml
 from app.viewmodels.document_viewmodel import DocumentViewModel
-from app.viewmodels.surface_viewmodel import SurfaceViewModel
 from app.viewmodels.zone_viewmodel import ZoneViewModel
 
 
@@ -226,7 +221,6 @@ class DocumentService(QObject):
         task.signals.failed.connect(self.xml_export_failed.emit)
         self._run_task(task)
 
-
     def go_to_page(self, index: int) -> None:
         """
         Navigates to the document page of specified index.
@@ -235,33 +229,17 @@ class DocumentService(QObject):
         """
         if not 0 <= index < len(self._document_vm.surfaces):
             return
-        self._document_vm.current_page_index = index
-        self._document_vm.selected_zone_index = None
+        cmd = GoToPageCommand(self._document_vm, index)
+        self.do_command(cmd)
 
-    def add_surfaces_from_images(self, paths: list[Path]) -> bool:
+    def add_surfaces_from_images(self, paths: list[Path]) -> None:
         """
         Adds surfaces created from image files to the document.
 
         :param paths: List of paths to images.
-        :return: True if all surfaces could be added to the document.
         """
-        for path in paths:
-            try:
-                image = path.read_bytes()
-            except Exception as error:
-                self.add_surface_failed.emit(error)
-                return False
-            surface = Surface(image=image, image_path=str(path), zones=())
-            surface_vm = SurfaceViewModel(parent=self._document_vm)
-            surface_to_viewmodel(surface, surface_vm)
-            self._document_vm.surfaces = (*self._document_vm.surfaces, surface_vm)
-
-        # Go to first newly added page!
-        self._document_vm.current_page_index = len(self._document_vm.surfaces) - len(paths)
-        self._document_vm.selected_zone_index = None
-        self._document_vm.dirty = True
-        self.add_surface_succeeded.emit()
-        return True
+        cmd = AddSurfacesCommand(self._document_vm, paths, self.add_surface_succeeded, self.add_surface_failed)
+        self.do_command(cmd)
 
     def remove_surface(self, surface_index: int) -> None:
         """
@@ -269,24 +247,8 @@ class DocumentService(QObject):
 
         :param surface_index: Index to remove.
         """
-        self._surface_at(surface_index)
-        old_current_page_index = self._document_vm.current_page_index
-        self._document_vm.surfaces = (
-            *self._document_vm.surfaces[:surface_index],
-            *self._document_vm.surfaces[surface_index + 1 :],
-        )
-        if not self._document_vm.surfaces:
-            new_current_page_index = 0
-        elif old_current_page_index > surface_index:
-            new_current_page_index = old_current_page_index - 1
-        elif old_current_page_index >= len(self._document_vm.surfaces):
-            new_current_page_index = len(self._document_vm.surfaces) - 1
-        else:
-            new_current_page_index = old_current_page_index
-        self._document_vm.current_page_index = new_current_page_index
-        if surface_index <= old_current_page_index:
-            self._document_vm.selected_zone_index = None
-        self._document_vm.dirty = True
+        cmd = RemoveSurfaceCommand(self._document_vm, surface_index)
+        self.do_command(cmd)
 
     def add_zone(self, surface_index: int, zone: Zone) -> None:
         """
@@ -347,10 +309,8 @@ class DocumentService(QObject):
 
         :param doc_type: Document type.
         """
-        if doc_type == self._document_vm.document_type:
-            return
-        self._document_vm.document_type = doc_type
-        self._document_vm.dirty = True
+        cmd = SetDocumentTypeCommand(self._document_vm, doc_type)
+        self.do_command(cmd)
 
     def _emit_undo_redo_changed(self):
         undo_string = self._undo_stack[-1].name() if len(self._undo_stack) > 0 else None

@@ -279,7 +279,8 @@ class FacsimileCanvas(QGraphicsView):
         :param event: QMouseEvent object containing information about the mouse release.
         """
         if self._drag is None:
-            return super().mouseReleaseEvent(event)
+            super().mouseReleaseEvent(event)
+            return
         scene_pos = self.mapToScene(event.position().toPoint())
         drag = self._drag
         self._drag = None
