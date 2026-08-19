@@ -8,7 +8,7 @@ from PySide6.QtCore import QObject, QRunnable, QThreadPool, Signal, Slot
 from app.models.document import Document, Surface, Zone
 from app.repositories.document_repository import DocumentRepository
 from app.repositories.text_repository import TextRepository
-from app.services.command_service import Command, AddZoneCommand, RemoveZoneCommand
+from app.services.command_service import Command, AddZoneCommand, RemoveZoneCommand, UpdateZoneRectCommand
 from app.services.mapping_service import (
     document_to_viewmodel,
     surface_to_viewmodel,
@@ -327,10 +327,8 @@ class DocumentService(QObject):
         :param lrx: Lower right x coordinate.
         :param lry: Lower right y coordinate.
         """
-        surface_vm = self._surface_at(surface_index)
-        zone_vm = self._zone_at(surface_vm, zone_index)
-        zone_vm.set_rect(ulx, uly, lrx, lry)
-        self._document_vm.dirty = True
+        cmd = UpdateZoneRectCommand(self._document_vm, surface_index, zone_index, ulx, uly, lrx, lry)
+        self.do_command(cmd)
 
     def select_zone(self, zone_index: int | None) -> None:
         """
@@ -363,20 +361,6 @@ class DocumentService(QObject):
         self._undo_stack = []
         self._redo_stack = []
         self._emit_undo_redo_changed()
-
-    def _update_zone_rect(
-        self,
-        surface_index: int,
-        zone_index: int,
-        ulx: int,
-        uly: int,
-        lrx: int,
-        lry: int,
-    ) -> None:
-        surface_vm = self._surface_at(surface_index)
-        zone_vm = self._zone_at(surface_vm, zone_index)
-        zone_vm.set_rect(ulx, uly, lrx, lry)
-        self._document_vm.dirty = True
 
     def _open_finished(self, path: Path, doc: Document) -> None:
         document_to_viewmodel(doc, self._document_vm)

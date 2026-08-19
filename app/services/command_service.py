@@ -39,6 +39,7 @@ class AddZoneCommand(Command):
     """
     Adds a zone to the document viewmodel.
     """
+
     def __init__(self, document_vm: DocumentViewModel, surface_index: int, zone: Zone):
         """
         :param document_vm: Document viewmodel.
@@ -75,6 +76,7 @@ class RemoveZoneCommand(Command):
     """
     Removes a zone from the document viewmodel.
     """
+
     def __init__(self, document_vm: DocumentViewModel, surface_index: int, zone_index: int):
         """
         :param document_vm: Document viewmodel.
@@ -135,3 +137,53 @@ class RemoveZoneCommand(Command):
             return
         elif self.zone_index < selected:
             self.document_vm.selected_zone_index = selected + 1
+
+class UpdateZoneRectCommand(Command):
+    """
+    Updates a specific zone's coordinates in the document viewmodel.
+    """
+
+    def __init__(self, document_vm: DocumentViewModel,
+        surface_index: int,
+        zone_index: int,
+        ulx: int,
+        uly: int,
+        lrx: int,
+        lry: int
+    ):
+        """
+        :param document_vm: Document viewmodel.
+        :param surface_index: Surface index of the zone to be updated.
+        :param zone_index: Zone index of the zone to be updated.
+        :param ulx: Upper left x coordinate.
+        :param uly: Upper left y coordinate.
+        :param lrx: Lower right x coordinate.
+        :param lry: Lower right y coordinate.
+        """
+        self.document_vm = document_vm
+        self.surface_index = surface_index
+        self.zone_index = zone_index
+        self.new_coordinates = (ulx, uly, lrx, lry)
+        self.old_coordinates = None  # Holds the old zone coordinates for undo
+
+        if not 0 <= surface_index < len(self.document_vm.surfaces):
+            raise IndexError(f"Surface index out of range: {surface_index}")
+
+        if not 0 <= zone_index < len(self.document_vm.surfaces[surface_index].zones):
+            raise IndexError(f"Surface index out of range: {zone_index}")
+
+    def name(self):
+        return "Change Zone Coords"
+
+    def do(self):
+        surface_vm: SurfaceViewModel = self.document_vm.surfaces[self.surface_index]
+        zone_vm: ZoneViewModel = surface_vm.zones[self.zone_index]
+        self.old_coordinates = (zone_vm.ulx, zone_vm.uly, zone_vm.lrx, zone_vm.lry)
+        zone_vm.set_rect(*self.new_coordinates)
+        self.document_vm.dirty = True
+
+    def undo(self):
+        surface_vm: SurfaceViewModel = self.document_vm.surfaces[self.surface_index]
+        zone_vm: ZoneViewModel = surface_vm.zones[self.zone_index]
+        zone_vm.set_rect(*self.old_coordinates)
+        self.document_vm.dirty = True

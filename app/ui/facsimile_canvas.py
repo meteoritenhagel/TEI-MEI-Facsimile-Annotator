@@ -40,6 +40,7 @@ class _DragState:
     zone_index: int | None = None
     original_rect: tuple[float, float, float, float] | None = None
     moved: bool = False
+    drag_offset: QPointF | None = None
 
 
 class FacsimileCanvas(QGraphicsView):
@@ -256,14 +257,17 @@ class FacsimileCanvas(QGraphicsView):
             self._drag.moved = True
             ulx, uly, lrx, lry = self._drag.original_rect or (0, 0, 0, 0)
             delta = scene_pos - self._drag.start
-            self._document_service.update_zone_rect(
-                self._document_vm.current_page_index,
-                self._drag.zone_index,
-                ulx + delta.x(),
-                uly + delta.y(),
-                lrx + delta.x(),
-                lry + delta.y(),
-            )
+            self._drag.drag_offset = delta  # Store the offset for use in mouseReleaseEvent
+
+            # Update the QGraphicsRectItem visually, but do not update the viewmodel yet! Only on mouse release
+            item = self._zone_items.get(self._drag.zone_index)
+            if item is not None:
+                item.setRect(
+                    ulx + delta.x(),
+                    uly + delta.y(),
+                    (lrx - ulx),
+                    (lry - uly),
+                )
             return
         super().mouseMoveEvent(event)
 
@@ -286,8 +290,20 @@ class FacsimileCanvas(QGraphicsView):
         if drag.mode == "create":
             self._finish_create(drag.start, scene_pos)
             return
-        if drag.mode == "move" and drag.zone_index is not None and not drag.moved:
-            self._document_service.select_zone(drag.zone_index)
+        if drag.mode == "move" and drag.zone_index is not None:
+            if drag.moved:
+                ulx, uly, lrx, lry = drag.original_rect or (0, 0, 0, 0)
+                delta = drag.drag_offset
+                self._document_service.update_zone_rect(
+                    self._document_vm.current_page_index,
+                    drag.zone_index,
+                    ulx + delta.x(),
+                    uly + delta.y(),
+                    lrx + delta.x(),
+                    lry + delta.y(),
+                )
+            else:
+                self._document_service.select_zone(drag.zone_index)
             return
         super().mouseReleaseEvent(event)
 

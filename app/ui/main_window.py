@@ -104,7 +104,7 @@ class MainWindow(QMainWindow):
         self._status_label = QLabel("", self)
         self._image_label = QLineEdit("No page image", self)
         self._image_label.setReadOnly(True)
-        self._delete_zone_button = QPushButton("Delete Zone", self)
+        self._delete_zone_button = QPushButton("Remove Zone", self)
         self._delete_zone_button.clicked.connect(self._delete_selected_zone)
 
         self._ulx_spin = self._coordinate_spinbox()
