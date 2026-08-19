@@ -8,6 +8,7 @@ from PySide6.QtCore import QObject, QRunnable, QThreadPool, Signal, Slot
 from app.models.document import Document, Surface, Zone
 from app.repositories.document_repository import DocumentRepository
 from app.repositories.text_repository import TextRepository
+from app.services.command_service import Command, AddZoneCommand, RemoveZoneCommand
 from app.services.mapping_service import (
     document_to_viewmodel,
     surface_to_viewmodel,
@@ -77,7 +78,13 @@ class DocumentService(QObject):
         add_surface_succeeded (Signal()): Emitted when adding surfaces was successful.
         add_surface_failed (Signal(object)): Emitted when adding surfaces has failed.
 
+        undo_redo_changed (Signal(str, str)): Emitted when the undo/redo stacks have changed.
+
     Methods:
+        do_command (Command): Executes a command, registers it into the undo stack and clears redo stack.
+        undo: Undo latest command.
+        redo: Redo latest command.
+
         new_document: Creates a new document. Sets the viewmodel to an empty document state.
         open_file (Path): Opens the document file at the provided path.
         save_file: Saves the app state into a file on the file system.
@@ -104,6 +111,8 @@ class DocumentService(QObject):
     add_surface_succeeded = Signal()
     add_surface_failed = Signal(object)
 
+    undo_redo_changed = Signal(str, str)
+
     def __init__(
         self,
         document_repository: DocumentRepository,
@@ -128,6 +137,41 @@ class DocumentService(QObject):
         self._thread_pool = thread_pool or QThreadPool.globalInstance()
         self._active_tasks: set[RepoTask] = set()
 
+        self._undo_stack = []
+        self._redo_stack = []
+
+    def do_command(self, command: Command):
+        """
+        Executes a command, registers it into the undo stack and clears redo stack.
+        :param command: Command to execute.
+        """
+        command.do()
+        self._undo_stack.append(command)
+        self._redo_stack.clear()
+        self._emit_undo_redo_changed()
+
+    def undo(self):
+        """
+        Undo latest command.
+        """
+        if not self._undo_stack:
+            return
+        command = self._undo_stack.pop()
+        command.undo()
+        self._redo_stack.append(command)
+        self._emit_undo_redo_changed()
+
+    def redo(self):
+        """
+        Redo latest command.
+        """
+        if not self._redo_stack:
+            return
+        command = self._redo_stack.pop()
+        command.do()
+        self._undo_stack.append(command)
+        self._emit_undo_redo_changed()
+
     def new_document(self) -> None:
         """
         Creates a new document. Sets the viewmodel to an empty document state.
@@ -138,6 +182,7 @@ class DocumentService(QObject):
         self._document_vm.file_path = None
         self._document_vm.dirty = False
         self._document_vm.selected_zone_index = None
+        self._reset_undo_redo_stacks()
 
     def open_file(self, path: Path) -> None:
         """
@@ -149,6 +194,7 @@ class DocumentService(QObject):
         task.signals.finished.connect(lambda doc: self._open_finished(path, doc))
         task.signals.failed.connect(self.open_failed.emit)
         self._run_task(task)
+        self._reset_undo_redo_stacks()
 
     def save_file(self) -> bool:
         """
@@ -249,11 +295,8 @@ class DocumentService(QObject):
         :param surface_index: Surface the new zone is associated with.
         :param zone: Zone to add.
         """
-        surface_vm = self._surface_at(surface_index)
-        zone_vm = ZoneViewModel(parent=surface_vm)
-        zone_to_viewmodel(zone, zone_vm)
-        surface_vm.zones = (*surface_vm.zones, zone_vm)
-        self._document_vm.dirty = True
+        cmd = AddZoneCommand(self._document_vm, surface_index, zone)
+        self.do_command(cmd)
 
     def remove_zone(self, surface_index: int, zone_index: int) -> None:
         """
@@ -262,14 +305,8 @@ class DocumentService(QObject):
         :param surface_index: Index of surface which contains the zone to be removed.
         :param zone_index: Index of zone to be removed.
         """
-        surface_vm = self._surface_at(surface_index)
-        self._zone_at(surface_vm, zone_index)
-        surface_vm.zones = (
-            *surface_vm.zones[:zone_index],
-            *surface_vm.zones[zone_index + 1 :],
-        )
-        self._document_vm.dirty = True
-        self._adjust_selection_after_zone_removed(surface_index, zone_index)
+        cmd = RemoveZoneCommand(self._document_vm, surface_index, zone_index)
+        self.do_command(cmd)
 
     def update_zone_rect(
         self,
@@ -317,6 +354,30 @@ class DocumentService(QObject):
         self._document_vm.document_type = doc_type
         self._document_vm.dirty = True
 
+    def _emit_undo_redo_changed(self):
+        undo_string = self._undo_stack[-1].name() if len(self._undo_stack) > 0 else None
+        redo_string = self._redo_stack[-1].name() if len(self._redo_stack) > 0 else None
+        self.undo_redo_changed.emit(undo_string, redo_string)
+
+    def _reset_undo_redo_stacks(self):
+        self._undo_stack = []
+        self._redo_stack = []
+        self._emit_undo_redo_changed()
+
+    def _update_zone_rect(
+        self,
+        surface_index: int,
+        zone_index: int,
+        ulx: int,
+        uly: int,
+        lrx: int,
+        lry: int,
+    ) -> None:
+        surface_vm = self._surface_at(surface_index)
+        zone_vm = self._zone_at(surface_vm, zone_index)
+        zone_vm.set_rect(ulx, uly, lrx, lry)
+        self._document_vm.dirty = True
+
     def _open_finished(self, path: Path, doc: Document) -> None:
         document_to_viewmodel(doc, self._document_vm)
         self._document_vm.file_path = path
@@ -358,16 +419,3 @@ class DocumentService(QObject):
         if not 0 <= index < len(surface_vm.zones):
             raise IndexError(f"Zone index out of range: {index}")
         return surface_vm.zones[index]
-
-    def _adjust_selection_after_zone_removed(
-        self, surface_index: int, removed_zone_index: int
-    ) -> None:
-        if surface_index != self._document_vm.current_page_index:
-            return
-        selected = self._document_vm.selected_zone_index
-        if selected is None:
-            return
-        if selected == removed_zone_index:
-            self._document_vm.selected_zone_index = None
-        elif removed_zone_index < selected:
-            self._document_vm.selected_zone_index = selected - 1

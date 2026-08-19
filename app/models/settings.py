@@ -157,7 +157,7 @@ class DisplaySettings:
 
     selected_zone_border_thickness: float_range[0.5, 5, 0.5] = 3.0
     selected_zone_border_color: QColor = field(default_factory=lambda: QColor("#0b63ce"))
-    selected_zone_fill_color: QColor = field(default_factory=lambda: QColor("#ffe066"))
+    selected_zone_fill_color: QColor = field(default_factory=lambda: QColor("#3584e4"))
     selected_zone_fill_opacity: int_range[0, 255] = 85
 
 

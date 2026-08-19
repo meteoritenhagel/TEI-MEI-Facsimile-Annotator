@@ -193,6 +193,16 @@ class MainWindow(QMainWindow):
         # --- Edit Menu ---
         edit_menu = self.menuBar().addMenu("Edit")
 
+        self.action_undo = edit_menu.addAction("Undo", self._document_service.undo)
+        self.action_undo.setIcon(QIcon.fromTheme(QIcon.ThemeIcon.EditUndo))
+        self.action_undo.setEnabled(False)
+        self.action_undo.setShortcut("Ctrl+Z")
+
+        self.action_redo = edit_menu.addAction("Redo", self._document_service.redo)
+        self.action_redo.setIcon(QIcon.fromTheme(QIcon.ThemeIcon.EditRedo))
+        self.action_redo.setEnabled(False)
+        self.action_redo.setShortcuts(("Ctrl+Y", "Ctrl+Shift+Z"))
+
         action_settings = edit_menu.addAction("Settings...", self._open_settings_dialog)
         action_settings.setIcon(QIcon.fromTheme(QIcon.ThemeIcon.DocumentProperties))
 
@@ -264,6 +274,8 @@ class MainWindow(QMainWindow):
         self._document_vm.file_path_changed.connect(self._update_window_title)
         self._document_vm.dirty_changed.connect(self._update_window_title)
         self._document_vm.selected_zone_index_changed.connect(self._sync_selection)
+
+        self._document_service.undo_redo_changed.connect(self._update_undo_redo_actions)
         self._document_service.add_surface_succeeded.connect(lambda: self._status_label.setText("Page added"))
 
         self._document_service.open_succeeded.connect(lambda: self._status_label.setText("Opened"))
@@ -331,6 +343,26 @@ class MainWindow(QMainWindow):
         return surfaces[index]
 
     def _new_document(self) -> None:
+        if self._document_vm.dirty:
+            msg_box = QMessageBox(self)
+            msg_box.setIcon(QMessageBox.Icon.Warning)
+            msg_box.setWindowTitle("Unsaved Changes")
+            msg_box.setText("You have unsaved changes. What would you like to do?")
+            save_btn = msg_box.addButton("Save and Create New Document", QMessageBox.ButtonRole.AcceptRole)
+            save_btn.setIcon(QIcon.fromTheme(QIcon.ThemeIcon.DocumentSave))
+            close_btn = msg_box.addButton("Create New Document without Saving", QMessageBox.ButtonRole.DestructiveRole)
+            close_btn.setIcon(QIcon.fromTheme(QIcon.ThemeIcon.EditDelete))
+            cancel_btn = msg_box.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
+            cancel_btn.setIcon(QIcon.fromTheme(QIcon.ThemeIcon.EditClear))
+            msg_box.setDefaultButton(cancel_btn)  # Make "Cancel" the default
+            msg_box.exec()
+
+            clicked = msg_box.clickedButton()
+            if clicked == cancel_btn:  # cancel
+                return
+            elif clicked == save_btn:
+                self._save_document()
+
         self._document_service.new_document()
         self._status_label.setText("New document")
 
@@ -567,6 +599,21 @@ class MainWindow(QMainWindow):
         name = self._document_vm.file_path.name if self._document_vm.file_path else "Untitled"
         dirty = " *" if self._document_vm.dirty else ""
         self.setWindowTitle(f"{APPLICATION_NAME} - {name}{dirty}")
+
+    def _update_undo_redo_actions(self, undo_name: str, redo_name: str) -> None:
+        if undo_name != "":
+            self.action_undo.setText(f"Undo {undo_name}")
+            self.action_undo.setEnabled(True)
+        else:
+            self.action_undo.setText(f"Undo")
+            self.action_undo.setEnabled(False)
+
+        if redo_name != "":
+            self.action_redo.setText(f"Redo {redo_name}")
+            self.action_redo.setEnabled(True)
+        else:
+            self.action_redo.setText(f"Redo")
+            self.action_redo.setEnabled(False)
 
     def _save_failed(self, error: object) -> None:
         message = f"Failed to save: {error}"

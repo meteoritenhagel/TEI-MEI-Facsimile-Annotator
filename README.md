@@ -81,6 +81,7 @@ Widgets -> Services -> ViewModels -> Qt signals -> Widgets
   - `app/viewmodels/surface_viewmodel.py`: Holds the live application state regarding surface contents.
   - `app/viewmodels/zone_viewmodel.py`: Holds the live application state regarding zone contents.
 - Services (`app/services/`) 
+  - `app/services/command_service.py`: Contains commands that can be done/undone.
   - `app/services/document_service.py`: Document manipulation, such as adding/removal of surfaces/zones, etc. 
   - `app/services/image_service.py`: Image manipulation, such as applying brightness/saturation/contrast.
   - `app/services/mapping_service.py`: Model/viewmodel conversion, only called by services. Mapping functions touch only
