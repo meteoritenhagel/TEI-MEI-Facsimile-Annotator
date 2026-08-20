@@ -9,7 +9,7 @@ from app.models.document import Document, Surface, Zone
 from app.repositories.document_repository import DocumentRepository
 from app.repositories.text_repository import TextRepository
 from app.services.command_service import Command, AddZoneCommand, RemoveZoneCommand, UpdateZoneRectCommand, \
-    SetDocumentTypeCommand, GoToPageCommand, AddSurfacesCommand, RemoveSurfaceCommand
+    SetDocumentTypeCommand, GoToPageCommand, AddSurfacesCommand, RemoveSurfaceCommand, ChangeZoneOrderCommand
 from app.services.mapping_service import document_to_viewmodel, viewmodel_to_document
 from app.services.xml_export_service import viewmodel_to_xml
 from app.viewmodels.document_viewmodel import DocumentViewModel
@@ -92,6 +92,7 @@ class DocumentService(QObject):
         add_zone (int, Zone): Adds a zone to the document.
         remove_zone (int, int): Removes a zone from the document.
         update_zone_rect (int, int, int, int, int, int): Updates a specific zone's coordinates.
+        change_zone_order (int, int, int): Changes the zone order in the document.
         select_zone (int): Marks a zone in the document as selected.
         set_document_type (Literal["TEI", "MEI"]): Sets the document type.
     """
@@ -290,6 +291,17 @@ class DocumentService(QObject):
         :param lry: Lower right y coordinate.
         """
         cmd = UpdateZoneRectCommand(self._document_vm, surface_index, zone_index, ulx, uly, lrx, lry)
+        self.do_command(cmd)
+
+    def change_zone_order(self, surface_index: int, zone_index: int, target_index: int) -> None:
+        """
+        Changes the zone order in the document.
+
+        :param surface_index: Index of surface which contains the zone to be removed.
+        :param zone_index: Index of zone to be moved.
+        :param target_index: New index of zone.
+        """
+        cmd = ChangeZoneOrderCommand(self._document_vm, surface_index, zone_index, target_index)
         self.do_command(cmd)
 
     def select_zone(self, zone_index: int | None) -> None:

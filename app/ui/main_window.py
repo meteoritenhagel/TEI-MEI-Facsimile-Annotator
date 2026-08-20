@@ -104,8 +104,18 @@ class MainWindow(QMainWindow):
         self._status_label = QLabel("", self)
         self._image_label = QLineEdit("No page image", self)
         self._image_label.setReadOnly(True)
+
         self._delete_zone_button = QPushButton("Remove Zone", self)
+        self._delete_zone_button.setIcon(QIcon.fromTheme(QIcon.ThemeIcon.EditClear))
         self._delete_zone_button.clicked.connect(self._delete_selected_zone)
+
+        self._move_zone_up_button = QPushButton("Move Up", self)
+        self._move_zone_up_button.setIcon(QIcon.fromTheme(QIcon.ThemeIcon.GoUp))
+        self._move_zone_up_button.clicked.connect(self._move_selected_zone_up)
+
+        self._move_zone_down_button = QPushButton("Move Down", self)
+        self._move_zone_down_button.setIcon(QIcon.fromTheme(QIcon.ThemeIcon.GoDown))
+        self._move_zone_down_button.clicked.connect(self._move_selected_zone_down)
 
         self._ulx_spin = self._coordinate_spinbox()
         self._uly_spin = self._coordinate_spinbox()
@@ -249,7 +259,13 @@ class MainWindow(QMainWindow):
             row.addWidget(spinbox)
             coordinate_layout.addLayout(row)
         side_layout.addLayout(coordinate_layout)
-        side_layout.addWidget(self._delete_zone_button)
+
+        button_layout = QHBoxLayout()
+        button_layout.addWidget(self._delete_zone_button)
+        button_layout.addWidget(self._move_zone_up_button)
+        button_layout.addWidget(self._move_zone_down_button)
+
+        side_layout.addLayout(button_layout)
         side_panel.setMinimumWidth(340)
 
         dock = QDockWidget("Page Zones", self)
@@ -454,6 +470,20 @@ class MainWindow(QMainWindow):
     def _delete_selected_zone(self) -> None:
         self._canvas.delete_selected_zone()
 
+    def _move_selected_zone_up(self) -> None:
+        self._document_service.change_zone_order(
+            self._document_vm.current_page_index,
+            self._document_vm.selected_zone_index,
+            self._document_vm.selected_zone_index - 1,
+        )
+
+    def _move_selected_zone_down(self) -> None:
+        self._document_service.change_zone_order(
+            self._document_vm.current_page_index,
+            self._document_vm.selected_zone_index,
+            self._document_vm.selected_zone_index + 1,
+        )
+
     def _document_type_changed(self, value: str) -> None:
         if value in ("TEI", "MEI"):
             self._document_service.set_document_type(value)
@@ -550,6 +580,8 @@ class MainWindow(QMainWindow):
         self._zone_table.blockSignals(False)
         self._sync_coordinate_spinboxes()
         self._delete_zone_button.setEnabled(selected is not None)
+        self._move_zone_up_button.setEnabled(selected is not None)
+        self._move_zone_down_button.setEnabled(selected is not None)
 
     def _coordinate_spinbox(self) -> QDoubleSpinBox:
         spinbox = QDoubleSpinBox(self)

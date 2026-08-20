@@ -97,7 +97,7 @@ class RemoveZoneCommand(Command):
             raise IndexError(f"Surface index out of range: {surface_index}")
 
         if not 0 <= zone_index < len(self.document_vm.surfaces[surface_index].zones):
-            raise IndexError(f"Surface index out of range: {zone_index}")
+            raise IndexError(f"Zone index out of range: {zone_index}")
 
     def name(self):
         return "Remove Zone"
@@ -174,7 +174,7 @@ class UpdateZoneRectCommand(Command):
             raise IndexError(f"Surface index out of range: {surface_index}")
 
         if not 0 <= zone_index < len(self.document_vm.surfaces[surface_index].zones):
-            raise IndexError(f"Surface index out of range: {zone_index}")
+            raise IndexError(f"Zone index out of range: {zone_index}")
 
     def name(self):
         return "Change Zone Coords"
@@ -364,3 +364,78 @@ class RemoveSurfaceCommand(Command):
         )
         self.document_vm.current_page_index = self.deleted_surface_index
         self.document_vm.dirty = True
+
+
+class ChangeZoneOrderCommand(Command):
+    """
+    Changes the zone order in the document viewmodel.
+    """
+
+    def __init__(self, document_vm: DocumentViewModel, surface_index: int, zone_index: int, target_index: int):
+        """
+        :param document_vm: Document viewmodel.
+        :param surface_index: Index of surface which contains the zone to be removed.
+        :param zone_index: Index of zone to be moved.
+        :param target_index: New index of zone.
+        """
+        self.document_vm = document_vm
+        self.surface_index = surface_index
+        self.zone_index = zone_index
+        self.target_index = target_index
+
+        if not 0 <= surface_index < len(self.document_vm.surfaces):
+            raise IndexError(f"Surface index out of range: {surface_index}")
+
+        if not 0 <= zone_index < len(self.document_vm.surfaces[surface_index].zones):
+            raise IndexError(f"Zone index out of range: {zone_index}")
+
+        if not 0 <= target_index < len(self.document_vm.surfaces[surface_index].zones):
+            raise IndexError(f"Target index out of range: {target_index}")
+
+    def name(self):
+        return "Change Zone Order"
+
+    def do(self):
+        surface_vm: SurfaceViewModel = self.document_vm.surfaces[self.surface_index]
+
+        zones = list(surface_vm.zones)
+        zone = zones.pop(self.zone_index)
+        zones.insert(self.target_index, zone)
+
+        surface_vm.zones = tuple(zones)
+
+        self.document_vm.dirty = True
+        self._adjust_selected_zone_index_do()
+
+    def undo(self):
+        surface_vm: SurfaceViewModel = self.document_vm.surfaces[self.surface_index]
+
+        zones = list(surface_vm.zones)
+        zone = zones.pop(self.target_index)
+        zones.insert(self.zone_index, zone)
+
+        surface_vm.zones = tuple(zones)
+        self.document_vm.dirty = True
+        self._adjust_selected_zone_index_undo()
+
+    def _adjust_selected_zone_index_do(self):
+        if self.surface_index != self.document_vm.current_page_index:
+            return
+        selected = self.document_vm.selected_zone_index
+        if selected is None:
+            return
+        if selected == self.zone_index:
+            self.document_vm.selected_zone_index = self.target_index
+        else:
+            self.document_vm.selected_zone_index = None
+
+    def _adjust_selected_zone_index_undo(self):
+        if self.surface_index != self.document_vm.current_page_index:
+            return
+        selected = self.document_vm.selected_zone_index
+        if selected is None:
+            return
+        elif selected == self.target_index:
+            self.document_vm.selected_zone_index = self.zone_index
+        else:
+            self.document_vm.selected_zone_index = None
