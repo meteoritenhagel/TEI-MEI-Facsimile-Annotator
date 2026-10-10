@@ -389,13 +389,13 @@ class ChangeZoneOrderCommand(Command):
         if not 0 <= zone_index < len(self.document_vm.surfaces[surface_index].zones):
             raise IndexError(f"Zone index out of range: {zone_index}")
 
-        if not 0 <= target_index < len(self.document_vm.surfaces[surface_index].zones):
-            raise IndexError(f"Target index out of range: {target_index}")
-
     def name(self):
         return "Change Zone Order"
 
     def do(self):
+        if not 0 <= self.target_index < len(self.document_vm.surfaces[self.surface_index].zones):
+            return
+
         surface_vm: SurfaceViewModel = self.document_vm.surfaces[self.surface_index]
 
         zones = list(surface_vm.zones)
@@ -408,6 +408,9 @@ class ChangeZoneOrderCommand(Command):
         self._adjust_selected_zone_index_do()
 
     def undo(self):
+        if not 0 <= self.target_index < len(self.document_vm.surfaces[self.surface_index].zones):
+            return
+        
         surface_vm: SurfaceViewModel = self.document_vm.surfaces[self.surface_index]
 
         zones = list(surface_vm.zones)
